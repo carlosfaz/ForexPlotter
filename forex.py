@@ -3,26 +3,18 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from datetime import datetime, timedelta
-import pytz  # Asegúrate de tener instalada esta librería para manejar zonas horarias
 
 def analizar_activo(ticker_symbol, pdf):
     # Crear objeto de Ticker y obtener el nombre del activo
     ticker = yf.Ticker(ticker_symbol)
     asset_name = ticker.info.get("shortName", "Activo")
     
-    # Descargar datos del activo en intervalos de 1 minuto para los últimos 5 días
+    # Descargar datos del activo en intervalos de 1 minuto para la última semana
     data = ticker.history(period="5d", interval="1m")
-
-    # Convertir el índice a la zona horaria local
-    data.index = data.index.tz_convert(pytz.timezone('America/Mexico_City'))
-    
-    # Filtrar solo las últimas 24 horas
-    last_24h = datetime.now(pytz.timezone('America/Mexico_City')) - timedelta(days=2)
-    data = data[data.index >= last_24h]
     
     # Verificar si se obtuvieron datos
     if data.empty:
-        print(f"No se han encontrado datos para las últimas 24 horas de {ticker_symbol}.")
+        print(f"No se han encontrado datos para la última semana de {ticker_symbol}.")
         return
     
     # Obtener la fecha y hora del último dato
@@ -44,7 +36,7 @@ def analizar_activo(ticker_symbol, pdf):
     kurtosis = data['Close'].kurtosis()
     
     # Mostrar estadísticas
-    print(f"Estadísticas del precio de {asset_name} en las últimas 24 horas:")
+    print(f"Estadísticas del precio de {asset_name} esta semana:")
     print(f"- Último precio: {last_price:.2f} USD")
     print(f"- Última fecha y hora del dato: {last_datetime}")
     print(f"- Precio medio: {mean_price:.2f} USD")
@@ -66,9 +58,9 @@ def analizar_activo(ticker_symbol, pdf):
     
     # Conclusiones basadas en estadísticas
     if std_dev_price > mean_price * 0.05:
-        print("Conclusión: La volatilidad del precio del activo ha sido alta en las últimas 24 horas.")
+        print("Conclusión: La volatilidad del precio del activo ha sido alta esta semana.")
     else:
-        print("Conclusión: La volatilidad del precio del activo ha sido baja en las últimas 24 horas.")
+        print("Conclusión: La volatilidad del precio del activo ha sido baja esta semana.")
         
     if coef_var > 10:
         print("Conclusión: Alta variabilidad en el precio, lo cual puede indicar un mercado inestable.")
@@ -93,7 +85,7 @@ def analizar_activo(ticker_symbol, pdf):
     plt.axhline(y=last_price, color='orange', linestyle='--', label='Último Precio')
     plt.xlabel("Fecha")
     plt.ylabel(f"Precio de {asset_name} (USD)")
-    plt.title(f"Medias Móviles del Precio de {asset_name}")
+    plt.title(f"Medias Móviles del Precio de {asset_name} esta semana")
     plt.legend()
     plt.grid(True)
     pdf.savefig()  # Guarda la gráfica en el PDF
@@ -106,7 +98,7 @@ def analizar_activo(ticker_symbol, pdf):
     plt.axvline(median_price, color='green', linestyle='dashed', linewidth=1, label='Mediana')
     plt.xlabel(f"Precio de {asset_name} (USD)")
     plt.ylabel("Frecuencia")
-    plt.title(f"Histograma del Precio de {asset_name}")
+    plt.title(f"Histograma del Precio de {asset_name} esta semana")
     plt.legend()
     plt.grid(True)
     pdf.savefig()  # Guarda la gráfica en el PDF
