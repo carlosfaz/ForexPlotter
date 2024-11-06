@@ -4,6 +4,8 @@ import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 from datetime import datetime, timedelta
 
+#version rev
+
 def analizar_activo(ticker_symbol, pdf):
     # Crear objeto de Ticker y obtener el nombre del activo
     ticker = yf.Ticker(ticker_symbol)
