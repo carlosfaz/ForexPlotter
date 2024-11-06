@@ -1,47 +1,52 @@
 import yfinance as yf
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import warnings
 from matplotlib.backends.backend_pdf import PdfPages
-
-warnings.filterwarnings("ignore")
+from datetime import datetime, timedelta
+import pytz  # Asegúrate de tener instalada esta librería para manejar zonas horarias
 
 def analizar_activo(ticker_symbol, pdf):
-    # Configurar el rango de tiempo para las últimas 24 horas
-    end_time = datetime.now()
-    start_time = end_time - timedelta(hours=24)
-    
     # Crear objeto de Ticker y obtener el nombre del activo
     ticker = yf.Ticker(ticker_symbol)
     asset_name = ticker.info.get("shortName", "Activo")
     
-    # Descargar datos del activo en intervalos de 1 minuto
-    data = yf.download(ticker_symbol, start=start_time, end=end_time, interval="1m")
+    # Descargar datos del activo en intervalos de 1 minuto para los últimos 5 días
+    data = ticker.history(period="5d", interval="1m")
+
+    # Convertir el índice a la zona horaria local
+    data.index = data.index.tz_convert(pytz.timezone('America/Mexico_City'))
+    
+    # Filtrar solo las últimas 24 horas
+    last_24h = datetime.now(pytz.timezone('America/Mexico_City')) - timedelta(days=2)
+    data = data[data.index >= last_24h]
     
     # Verificar si se obtuvieron datos
     if data.empty:
         print(f"No se han encontrado datos para las últimas 24 horas de {ticker_symbol}.")
         return
     
+    # Obtener la fecha y hora del último dato
+    last_datetime = data.index[-1]
+    
     # Calcular estadísticas
-    mean_price = data['Close'].mean().item()
-    std_dev_price = data['Close'].std().item()
-    min_price = data['Close'].min().item()
-    max_price = data['Close'].max().item()
+    mean_price = data['Close'].mean()
+    std_dev_price = data['Close'].std()
+    min_price = data['Close'].min()
+    max_price = data['Close'].max()
     price_range = max_price - min_price
-    median_price = data['Close'].median().item()
+    median_price = data['Close'].median()
     coef_var = (std_dev_price / mean_price) * 100  # Porcentaje
-    last_price = data['Close'].iloc[-1].item()
-    q1_price = data['Close'].quantile(0.25).item()
-    q3_price = data['Close'].quantile(0.75).item()
+    last_price = data['Close'].iloc[-1]
+    q1_price = data['Close'].quantile(0.25)
+    q3_price = data['Close'].quantile(0.75)
     iqr_price = q3_price - q1_price
-    skewness = data['Close'].skew().item()
-    kurtosis = data['Close'].kurtosis().item()
+    skewness = data['Close'].skew()
+    kurtosis = data['Close'].kurtosis()
     
     # Mostrar estadísticas
     print(f"Estadísticas del precio de {asset_name} en las últimas 24 horas:")
+    print(f"- Último precio: {last_price:.2f} USD")
+    print(f"- Última fecha y hora del dato: {last_datetime}")
     print(f"- Precio medio: {mean_price:.2f} USD")
     print(f"- Desviación estándar: {std_dev_price:.2f} USD")
     print(f"- Precio mínimo: {min_price:.2f} USD")
@@ -49,7 +54,6 @@ def analizar_activo(ticker_symbol, pdf):
     print(f"- Rango de precios: {price_range:.2f} USD")
     print(f"- Mediana: {median_price:.2f} USD")
     print(f"- Coeficiente de variación: {coef_var:.2f}%")
-    print(f"- Último precio: {last_price:.2f} USD")
     print(f"- Primer cuartil (Q1): {q1_price:.2f} USD")
     print(f"- Tercer cuartil (Q3): {q3_price:.2f} USD")
     print(f"- Rango intercuartílico (IQR): {iqr_price:.2f} USD")
@@ -94,7 +98,7 @@ def analizar_activo(ticker_symbol, pdf):
     plt.grid(True)
     pdf.savefig()  # Guarda la gráfica en el PDF
     plt.close()
-    
+
     # Histograma de precios
     plt.figure(figsize=(12, 6))
     plt.hist(data['Close'], bins=20, color='lightblue', edgecolor='black')
@@ -114,12 +118,5 @@ with PdfPages(pdf_filename) as pdf:
     # Análisis de los activos deseados
     # Divisas
     analizar_activo("MXN=X", pdf)   # Peso mexicano
-    analizar_activo("EURUSD=X", pdf)  # Euro
-    analizar_activo("GBPUSD=X", pdf)  # Libra esterlina
-    analizar_activo("JPY=X", pdf)      # Yen japonés
-    
-    # Metales preciosos
-    analizar_activo("GC=F", pdf)    # Oro
-    analizar_activo("SI=F", pdf)     # Plata
 
 print(f"Las gráficas han sido guardadas en {pdf_filename}")
