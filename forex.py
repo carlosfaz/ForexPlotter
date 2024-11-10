@@ -103,7 +103,41 @@ def pronosticar_precio(ticker_symbol):
     if data.empty:
         print(f"No se han encontrado datos para la última semana de {ticker_symbol}.")
         return None, None, None
+
+    # Obtener la fecha y hora del último dato
+    last_datetime = data.index[-1]
+    # Calcular estadísticas
+    mean_price = data['Close'].mean()
+    std_dev_price = data['Close'].std()
+    min_price = data['Close'].min()
+    max_price = data['Close'].max()
+    price_range = max_price - min_price
+    median_price = data['Close'].median()
+    coef_var = (std_dev_price / mean_price) * 100  # Porcentaje
+    last_price = data['Close'].iloc[-1]
+    q1_price = data['Close'].quantile(0.25)
+    q3_price = data['Close'].quantile(0.75)
+    iqr_price = q3_price - q1_price
+    skewness = data['Close'].skew()
+    kurtosis = data['Close'].kurtosis()
     
+    # Mostrar estadísticas
+    print(f"Estadísticas del precio de {asset_name} esta semana:")
+    print(f"- Último precio: {last_price:.2f} USD")
+    print(f"- Última fecha y hora del dato: {last_datetime}")
+    print(f"- Precio medio: {mean_price:.2f} USD")
+    print(f"- Desviación estándar: {std_dev_price:.2f} USD")
+    print(f"- Precio mínimo: {min_price:.2f} USD")
+    print(f"- Precio máximo: {max_price:.2f} USD")
+    print(f"- Rango de precios: {price_range:.2f} USD")
+    print(f"- Mediana: {median_price:.2f} USD")
+    print(f"- Coeficiente de variación: {coef_var:.2f}%")
+    print(f"- Primer cuartil (Q1): {q1_price:.2f} USD")
+    print(f"- Tercer cuartil (Q3): {q3_price:.2f} USD")
+    print(f"- Rango intercuartílico (IQR): {iqr_price:.2f} USD")
+    print(f"- Asimetría: {skewness:.2f}")
+    print(f"- Curtosis: {kurtosis:.2f}")
+
     # Calcular media (mu) y volatilidad (sigma)
     log_returns = np.log(data['Close'] / data['Close'].shift(1)).dropna()
     mu = log_returns.mean() * len(data)
@@ -258,3 +292,4 @@ prices_dict = {
 
 # Mostrar gráfica
 mostrar_grafica("MXN=X", data, prices_dict, html_filename)
+    
