@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.graph_objs as go
 from scipy.stats import norm
 import math
-import time
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -61,7 +60,7 @@ def pronosticar_precio(ticker_symbol):
     sigma = log_returns.std() * np.sqrt(len(data))
 
     # Parámetros comunes
-    num_steps = 24 * 60  # 24 horas en intervalos de 1 minuto
+    num_steps = 100 #
     S0 = data['Close'].iloc[-1]
     T = 1 / 24  # 1 día
     r = 0.01  # Tasa de interés libre de riesgo
@@ -77,22 +76,28 @@ def pronosticar_precio(ticker_symbol):
 
     return data, prices_heston, prices_bs, prices_gbm, asset_name
 
-# Función especial para agregar los pronósticos a la gráfica
+# Función especial para agregar los pronósticos a la gráfica con candlesticks
 def agregar_pronosticos_a_grafica(fig, future_times, prices_dict):
-    colors = {
-        'Heston': 'green',
-        'Black-Scholes': 'blue',
-        'GBM': 'purple',
-        'Vasicek': 'orange',
-        'CIR': 'red'
+    # Colores personalizados para cada modelo
+    model_colors = {
+        'Heston': '#00FF00',  # Verde
+        'Black-Scholes': '#0000FF',  # Azul
+        'GBM': '#800080',  # Morado
     }
+
     for model, prices in prices_dict.items():
-        fig.add_trace(go.Scatter(
+        # Crear candlesticks para los pronósticos con colores específicos
+        up_color = model_colors[model]  # Color para los precios crecientes
+        down_color = model_colors[model]  # Color para los precios decrecientes
+        fig.add_trace(go.Candlestick(
             x=future_times, 
-            y=prices, 
-            mode='lines', 
-            name=f'Predicción de Precios {model}', 
-            line=dict(color=colors[model], width=2, dash='dash')
+            open=prices[:-1], 
+            high=np.maximum(prices[:-1], prices[1:]), 
+            low=np.minimum(prices[:-1], prices[1:]), 
+            close=prices[1:], 
+            name=f'Predicción de Precios {model}',
+            increasing_line_color=up_color, 
+            decreasing_line_color=down_color
         ))
 
 # Función para mostrar la gráfica combinada
@@ -101,7 +106,7 @@ def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
         return
     
     # Crear figura para la simulación de precios
-    future_times = pd.date_range(data.index[-1], periods=len(next(iter(prices_dict.values()))), freq='T')
+    future_times = pd.date_range(data.index[-1], periods=len(next(iter(prices_dict.values()))), freq='40T')
     
     fig = go.Figure()
     
@@ -112,7 +117,9 @@ def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
         high=data['High'],
         low=data['Low'],
         close=data['Close'],
-        name='Precio Histórico'
+        name='Precio Histórico',
+        increasing_line_color='green',  # Color para el precio creciente
+        decreasing_line_color='red'  # Color para el precio decreciente
     ))
 
     # Agregar los pronósticos a la gráfica
