@@ -1,87 +1,83 @@
-import yfinance as yf
 import numpy as np
 import pandas as pd
-import plotly.graph_objs as go
-from scipy.stats import norm
-import math
-import warnings
+import yfinance as yf
+import plotly.graph_objects as go
 
-warnings.filterwarnings("ignore")
+# Modelos de predicción
 
-# Definición de los modelos estocásticos
-def heston_model(S0, T, r, sigma, v0, kappa, theta, rho, num_steps):
-    dt = T / num_steps
-    prices = np.zeros(num_steps + 1)
-    prices[0] = S0
-    v = np.zeros(num_steps + 1)
-    v[0] = v0
-    for i in range(num_steps):
-        z1 = np.random.normal(0, 1)
-        z2 = rho * z1 + math.sqrt(1 - rho**2) * np.random.normal(0, 1)
-        v[i + 1] = v[i] + kappa * (theta - v[i]) * dt + sigma * np.sqrt(v[i] * dt) * z1
-        prices[i + 1] = prices[i] * np.exp((r - 0.5 * v[i]) * dt + np.sqrt(v[i] * dt) * z2)
-    return prices
-
-def black_scholes_model(S0, T, r, sigma, num_steps):
+# 1. Levy Process (Levy Flight) - Proceso de Levy
+def levy_process(S0, T, r, sigma, alpha, num_steps):
     dt = T / num_steps
     prices = np.zeros(num_steps + 1)
     prices[0] = S0
     for i in range(num_steps):
-        z = np.random.normal(0, 1)
-        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * z)
+        dz = np.random.standard_t(df=alpha)  # Distribución de Lévy
+        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz)
     return prices
 
-def geometric_brownian_motion(S0, T, r, sigma, num_steps):
+# 2. Brownian Motion with Drift - Movimiento Browniano con deriva
+def brownian_motion_with_drift(S0, T, r, sigma, num_steps):
     dt = T / num_steps
     prices = np.zeros(num_steps + 1)
     prices[0] = S0
-    for i in range(num_steps):
-        z = np.random.normal(0, 1)
-        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * z)
-    return prices
-
-# Modelo CIR (Cox-Ingersoll-Ross)
-def cir_model(S0, T, r, sigma, kappa, theta, num_steps):
-    dt = T / num_steps
-    prices = np.zeros(num_steps + 1)
-    prices[0] = S0
-    v = np.zeros(num_steps + 1)
-    v[0] = sigma**2
     for i in range(num_steps):
         dz = np.random.normal(0, 1)
-        v[i + 1] = v[i] + kappa * (theta - v[i]) * dt + np.sqrt(v[i] * dt) * dz
-        v[i + 1] = max(v[i + 1], 0)  # Evitar que la volatilidad se vuelva negativa
-        prices[i + 1] = prices[i] * np.exp((r - 0.5 * v[i]) * dt + np.sqrt(v[i] * dt) * dz)
+        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz)
     return prices
 
-# Modelo Vasicek (para tasas de interés)
-def vasicek_model(S0, T, r, sigma, kappa, theta, num_steps):
+# 3. Stable Paretian Process (α-stable) - Proceso Pareto Estable
+def stable_paretian_process(S0, T, r, sigma, alpha, num_steps):
     dt = T / num_steps
     prices = np.zeros(num_steps + 1)
     prices[0] = S0
-    v = np.zeros(num_steps + 1)
-    v[0] = r
+    for i in range(num_steps):
+        dz = np.random.standard_t(df=alpha)  # Distribución estable
+        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz)
+    return prices
+
+# 4. Wald Process - Proceso de Wald
+def wald_process(S0, T, r, sigma, num_steps):
+    dt = T / num_steps
+    prices = np.zeros(num_steps + 1)
+    prices[0] = S0
+    for i in range(num_steps):
+        dz = np.random.normal(0, 1)  # Distribución normal
+        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz)
+    return prices
+
+# 5. Cox Process - Proceso de Cox
+def cox_process(S0, T, r, sigma, kappa, theta, num_steps):
+    dt = T / num_steps
+    prices = np.zeros(num_steps + 1)
+    prices[0] = S0
     for i in range(num_steps):
         dz = np.random.normal(0, 1)
-        v[i + 1] = v[i] + kappa * (theta - v[i]) * dt + sigma * np.sqrt(dt) * dz
-        prices[i + 1] = prices[i] * np.exp((v[i] - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz)
+        dz_jump = np.random.normal(0, kappa)  # Estabilidad de la media
+        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz + theta * dz_jump)
+    return prices
+
+# 6. Random Walk Process - Proceso de Caminata Aleatoria
+def random_walk_process(S0, T, r, sigma, num_steps):
+    dt = T / num_steps
+    prices = np.zeros(num_steps + 1)
+    prices[0] = S0
+    for i in range(num_steps):
+        dz = np.random.choice([-1, 1])  # Movimiento aleatorio
+        prices[i + 1] = prices[i] * np.exp((r - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * dz)
     return prices
 
 # Función para pronosticar precios
 def pronosticar_precio(ticker_symbol):
-    # Crear objeto de Ticker y obtener el nombre del activo
     ticker = yf.Ticker(ticker_symbol)
     asset_name = ticker.info.get("shortName", "Activo")
     
     # Descargar datos del activo en intervalos de 1 minuto para los últimos 5 días
     data = ticker.history(period="5d", interval="15m")
     
-    # Verificar si se obtuvieron datos
     if data.empty:
         print(f"No se han encontrado datos para la última semana de {ticker_symbol}.")
-        return None, None, None
+        return None, None, None, None, None
     
-    # Calcular media (mu) y volatilidad (sigma)
     log_returns = np.log(data['Close'] / data['Close'].shift(1)).dropna()
     mu = log_returns.mean() * len(data)
     sigma = log_returns.std() * np.sqrt(len(data))
@@ -91,45 +87,32 @@ def pronosticar_precio(ticker_symbol):
     S0 = data['Close'].iloc[-1]  # Precio inicial
     T = 1 / 24  # 1 día
     r = 0.01  # Tasa de interés libre de riesgo
-    v0 = sigma**2  # Volatilidad inicial
-    kappa = 1.0  # Velocidad de reversión
-    theta = sigma**2  # Nivel de equilibrio
-    rho = 0.1  # Correlación
-
+    kappa = 0.2  # Parámetro para el proceso de Cox
+    theta = 0.1  # Parámetro para el proceso de Cox
+    
     # Pronósticos con los modelos seleccionados
-    prices_heston = heston_model(S0, T, r, sigma, v0, kappa, theta, rho, num_steps)
-    prices_bs = black_scholes_model(S0, T, r, sigma, num_steps)
-    prices_gbm = geometric_brownian_motion(S0, T, r, sigma, num_steps)
-    prices_cir = cir_model(S0, T, r, sigma, kappa, theta, num_steps)
-    prices_vasicek = vasicek_model(S0, T, r, sigma, kappa, theta, num_steps)
+    prices_levy = levy_process(S0, T, r, sigma, 1.5, num_steps)
+    prices_brownian = brownian_motion_with_drift(S0, T, r, sigma, num_steps)
+    prices_stable = stable_paretian_process(S0, T, r, sigma, 1.5, num_steps)
+    prices_wald = wald_process(S0, T, r, sigma, num_steps)
+    prices_cox = cox_process(S0, T, r, sigma, kappa, theta, num_steps)
+    prices_random_walk = random_walk_process(S0, T, r, sigma, num_steps)
 
-    return data, prices_heston, prices_bs, prices_gbm, prices_cir, prices_vasicek, asset_name
+    return data, prices_levy, prices_brownian, prices_stable, prices_wald, prices_cox, prices_random_walk, asset_name
 
-# Función especial para agregar los pronósticos a la gráfica con candlesticks
+# Función para agregar los pronósticos a la gráfica
 def agregar_pronosticos_a_grafica(fig, future_times, prices_dict):
-    # Colores personalizados para cada modelo
     model_colors = {
-        'Heston': '#00FF00',  # Verde
-        'Black-Scholes': '#0000FF',  # Azul
-        'GBM': '#800080',  # Morado
-        'CIR': '#FF4500',  # Naranja
-        'Vasicek': '#FFD700',  # Dorado
+        'Levy': '#FF0000',  # Rojo
+        'Brownian': '#00FF00',  # Verde
+        'Stable': '#0000FF',  # Azul
+        'Wald': '#FF00FF',  # Magenta
+        'Cox': '#FF6600',  # Naranja
+        'Random Walk': '#000000'  # Negro
     }
 
     for model, prices in prices_dict.items():
-        # Crear candlesticks para los pronósticos con colores específicos
-        up_color = model_colors[model]  # Color para los precios crecientes
-        down_color = model_colors[model]  # Color para los precios decrecientes
-        fig.add_trace(go.Candlestick(
-            x=future_times, 
-            open=prices[:-1], 
-            high=np.maximum(prices[:-1], prices[1:]), 
-            low=np.minimum(prices[:-1], prices[1:]), 
-            close=prices[1:], 
-            name=f'Predicción de Precios {model}',
-            increasing_line_color=up_color, 
-            decreasing_line_color=down_color
-        ))
+        fig.add_trace(go.Scatter(x=future_times, y=prices, mode='lines', name=model, line=dict(color=model_colors.get(model, '#000000'))))
 
 # Función para mostrar la gráfica combinada
 def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
@@ -181,18 +164,19 @@ def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
     print(f"La gráfica de predicción ha sido guardada en {html_filename}")
 
 # Crear un archivo HTML para guardar la predicción de precios
-html_filename = "prediccion_precios.html"
+html_filename = "prediccion_precios_MXN_X.html"
 
 # Pronosticar precios
-data, prices_heston, prices_bs, prices_gbm, prices_cir, prices_vasicek, asset_name = pronosticar_precio("MXN=X")
+data, prices_levy, prices_brownian, prices_stable, prices_wald, prices_cox, prices_random_walk, asset_name = pronosticar_precio("MXN=X")
 
 # Crear un diccionario con los precios pronosticados
 prices_dict = {
-    'Heston': prices_heston,
-    'Black-Scholes': prices_bs,
-    'GBM': prices_gbm,
-    'CIR': prices_cir,
-    'Vasicek': prices_vasicek
+    'Levy': prices_levy,
+    'Brownian': prices_brownian,
+    'Stable': prices_stable,
+    'Wald': prices_wald,
+    'Cox': prices_cox,
+    'Random Walk': prices_random_walk
 }
 
 # Mostrar gráfica
