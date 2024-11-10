@@ -26,7 +26,7 @@ def analizar_activo(ticker_symbol, pdf):
         return
     
     # Calcular estadísticas
-    mean_price = data['Close'].mean().item()
+    mean_price = data['Close'].mean().item() #nnuv
     std_dev_price = data['Close'].std().item()
     min_price = data['Close'].min().item()
     max_price = data['Close'].max().item()
