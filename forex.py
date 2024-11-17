@@ -97,13 +97,13 @@ def pronosticar_precio(ticker_symbol):
     asset_name = ticker.info.get("shortName", "Activo")
     
     # Descargar datos del activo en intervalos de 1 minuto para los últimos 5 días
-    data = ticker.history(period="5d", interval="15m")
+    data = ticker.history(period="1mo", interval="15m")
     
     # Verificar si se obtuvieron datos
     if data.empty:
         print(f"No se han encontrado datos para la última semana de {ticker_symbol}.")
         return None, None, None
-
+    
     # Obtener la fecha y hora del último dato
     last_datetime = data.index[-1]
     # Calcular estadísticas
@@ -227,6 +227,7 @@ def agregar_pronosticos_a_grafica(fig, future_times, prices_dict):
         ))
 
 # Función para mostrar la gráfica combinada
+# Función para mostrar la gráfica combinada
 def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
     if data is None or not prices_dict:
         return
@@ -236,18 +237,50 @@ def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
     
     fig = go.Figure()
     
-    # Añadir candlesticks para el precio histórico
+    data = data[~data.index.to_series().diff().dt.days.gt(1)]  # Filtrar saltos mayores a 1 día
+    data['Date'] = data.index.strftime('%Y-%m-%d %H:%M:%S')  # Convertir índices a string
+    
+    # Identificar los saltos entre días
+    data['Delta'] = data.index.to_series().diff().dt.days.fillna(0)
+    weekend_jumps = data[data['Delta'] > 1].index  # Fechas con saltos
+
+    
     fig.add_trace(go.Candlestick(
-        x=data.index,
+        x=data['Date'],
         open=data['Open'],
         high=data['High'],
         low=data['Low'],
         close=data['Close'],
         name='Precio Histórico',
-        increasing_line_color='green',  # Color para el precio creciente
-        decreasing_line_color='red'  # Color para el precio decreciente
+        increasing_line_color='green',
+        decreasing_line_color='red'
     ))
-
+    
+    # Añadir líneas rojas para saltos de fin de semana
+    for jump in weekend_jumps:
+        fig.add_shape(
+            type="line",
+            x0=jump.strftime('%Y-%m-%d %H:%M:%S'),
+            x1=jump.strftime('%Y-%m-%d %H:%M:%S'),
+            y0=data['Low'].min(),
+            y1=data['High'].max(),
+            line=dict(color="red", width=2, dash="dot"),
+            xref='x',
+            yref='y'
+        )
+    
+    # Ajustar ejes con menos etiquetas y rotación
+    fig.update_layout(
+        title="Gráfico de Velas con Líneas de Fin de Semana",
+        xaxis=dict(
+            type="category", 
+            title="Fecha y Hora",
+            tickangle=-45,  # Rotar las etiquetas
+            tickmode='auto',
+            nticks=20  # Ajustar la cantidad de etiquetas
+        ),
+        yaxis=dict(title="Precio")  
+    )
     # Agregar los pronósticos a la gráfica
     agregar_pronosticos_a_grafica(fig, future_times, prices_dict)
 
@@ -274,9 +307,9 @@ def mostrar_grafica(ticker_symbol, data, prices_dict, html_filename):
     # Guardar la figura en un archivo HTML
     fig.write_html(html_filename)
     print(f"La gráfica de predicción ha sido guardada en {html_filename}")
-
+#esta es la version esatalbe 
 # Crear un archivo HTML para guardar la predicción de precios
-html_filename = "prediccion_precios.html"
+html_filename = "prediccion_precios2.html"
 
 # Pronosticar precios
 data, prices_heston, prices_bs, prices_gbm, prices_cir, prices_vasicek, asset_name = pronosticar_precio("MXN=X")
