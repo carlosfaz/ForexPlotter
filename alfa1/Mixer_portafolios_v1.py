@@ -195,18 +195,6 @@ ticker_industrials = {
     "GWW": ("W.W. Grainger Inc.", "Industrials")
 }
 
-ticker_utilities = {
-    "AEP": ("American Electric Power Company Inc.", "Utilities"),
-    "DUK": ("Duke Energy Corporation", "Utilities"),
-    "ED": ("Consolidated Edison Inc.", "Utilities"),
-    "EXC": ("Exelon Corporation", "Utilities"),
-    "NEE": ("NextEra Energy Inc.", "Utilities"),
-    "PCG": ("PG&E Corporation", "Utilities"),
-    "SRE": ("Sempra Energy", "Utilities"),
-    "SO": ("Southern Company", "Utilities"),
-    "WEC": ("WEC Energy Group Inc.", "Utilities"),
-    "XEL": ("Xcel Energy Inc.", "Utilities")
-}
 ticker_retail = {
     "BBY": ("Best Buy Co. Inc.", "Retail"),
     "COST": ("Costco Wholesale Corporation", "Retail"),
@@ -232,6 +220,20 @@ ticker_logistics = {
     "WERN": ("Werner Enterprises Inc.", "Logistics")
 }
 
+ticker_utilities = {
+    "AEP": ("American Electric Power Company Inc.", "Utilities"),
+    "DUK": ("Duke Energy Corporation", "Utilities"),
+    "ED": ("Consolidated Edison Inc.", "Utilities"),
+    "EXC": ("Exelon Corporation", "Utilities"),
+    "NEE": ("NextEra Energy Inc.", "Utilities"),
+    "PCG": ("PG&E Corporation", "Utilities"),
+    "SRE": ("Sempra Energy", "Utilities"),
+    "SO": ("Southern Company", "Utilities"),
+    "WEC": ("WEC Energy Group Inc.", "Utilities"),
+    "XEL": ("Xcel Energy Inc.", "Utilities")
+}
+
+
 # Ahora unimos todos los diccionarios en uno solo
 
 # Unir todos los diccionarios en un solo diccionario
@@ -240,6 +242,7 @@ tickers_info = {**ticker_tech, **ticker_bank, **ticker_consumer, **ticker_health
                 **ticker_retail, **ticker_logistics}
 
 print(f"Obteniendo data en {time.time() - start_time:.2f}.")
+
 
 # Function to obtain historical data
 def obtener_datos(tickers_info, start_date, end_date):
@@ -391,7 +394,7 @@ def obtener_informacion_financiera(tickers):
 all_tickers = list(tickers_info.keys())
 info_financiera = obtener_informacion_financiera(all_tickers)
 
-print(f"Imprimiendo resultados en en {time.time() - start_time:.2f}.")
+print(f"Imprimiendo resultados en {time.time() - start_time:.2f}.")
 
 
 # Generar portafolios por industria con información financiera
@@ -516,6 +519,7 @@ with open(html_filename, 'w', encoding='utf-8') as f:  # UTF-8 encoding
     f.write('</body></html>')
 
 print(f"Portfolio mixes have been saved to {html_filename}")
+print(f"Listo! en {time.time() - start_time:.2f}.")
 
 
 
