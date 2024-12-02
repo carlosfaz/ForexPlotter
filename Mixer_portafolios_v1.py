@@ -1,10 +1,11 @@
-import yfinance as yf
 import numpy as np
-import plotly.graph_objects as go
 import pandas as pd
-import warnings
-warnings.filterwarnings("ignore")
+import yfinance as yf
+from scipy.optimize import minimize
+import time
 
+# Guardamos el tiempo inicial
+start_time = time.time()
 
 # Diccionarios por industria
 ticker_tech = {
@@ -238,6 +239,8 @@ tickers_info = {**ticker_tech, **ticker_bank, **ticker_consumer, **ticker_health
                 **ticker_energy, **ticker_industrials, **ticker_utilities, 
                 **ticker_retail, **ticker_logistics}
 
+print(f"Obteniendo data en {time.time() - start_time:.2f}.")
+
 # Function to obtain historical data
 def obtener_datos(tickers_info, start_date, end_date):
     tickers = list(tickers_info.keys())  # Get tickers from dictionary keys
@@ -256,112 +259,54 @@ def calcular_metricas(retornos):
     media_retornos = retornos.mean() * 252  # Annual returns
     cov_matrix = retornos.cov() * 252  # Annualized covariance matrix
     
-    # Check if the covariance matrix has null values
-    if cov_matrix.isnull().any().any():
-        print("Warning: There are null values in the covariance matrix.")
-        cov_matrix = cov_matrix.dropna(axis=0, how='all').dropna(axis=1, how='all')
+    # Regularization to avoid invertibility issues
+    epsilon = 1e-6
+    cov_matrix += np.eye(len(cov_matrix)) * epsilon
     
     return media_retornos, cov_matrix
 
-# Efficient frontier calculation
-def frontera_eficiente(media_retornos, cov_matrix, num_puntos=100):
-    num_activos = len(media_retornos)
+# Function to calculate portfolio weights with non-negative constraints
+def optimizar_pesos(cov_matrix, media_retornos=None, objetivo='min_var', tasa_libre_riesgo=0.02):
+    n = len(cov_matrix)
+    ones = np.ones(n)
 
-    # Ensure there are no zeros in the covariance matrix diagonal
-    if np.any(np.isclose(np.diagonal(cov_matrix), 0)):
-        print("Warning: There are zeros in the covariance matrix diagonal, which could cause issues when inverting.")
-        return [], [], []
+    def minima_varianza(w):
+        return w.T @ cov_matrix @ w
 
-    # Covariance matrix inversion with error handling
-    try:
-        inv_cov_matrix = np.linalg.inv(cov_matrix)
-    except np.linalg.LinAlgError:
-        print("Error: Covariance matrix is not invertible.")
-        return [], [], []
+    def sharpe_ratio(w):
+        exceso_retorno = media_retornos - tasa_libre_riesgo
+        return -((w @ exceso_retorno) / np.sqrt(w @ cov_matrix @ w))
 
-    # Auxiliary vectors
-    ones = np.ones(num_activos)
+    # Objective function selection
+    if objetivo == 'min_var':
+        fun = minima_varianza
+    elif objetivo == 'max_sharpe':
+        fun = sharpe_ratio
+    else:
+        raise ValueError("Objetivo no válido. Use 'min_var' o 'max_sharpe'.")
 
-    # Calculate constants for the efficient frontier
-    A = ones.T @ inv_cov_matrix @ ones
-    B = ones.T @ inv_cov_matrix @ media_retornos
-    C = media_retornos.T @ inv_cov_matrix @ media_retornos
-    D = A * C - B**2
+    # Constraints and bounds
+    constraints = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1}]  # Weights sum to 1
+    bounds = [(0, 1) for _ in range(n)]  # No short selling (no negative weights)
 
-    # Ensure D is not close to zero (avoid division by zero)
-    if np.isclose(D, 0): 
-        return [], [], []
+    # Initial guess: equal weights
+    w0 = np.ones(n) / n
 
-    # Range of target returns
-    retornos_objetivo = np.linspace(media_retornos.min(), media_retornos.max(), num_puntos)
+    # Optimization
+    result = minimize(fun, w0, bounds=bounds, constraints=constraints)
+    if not result.success:
+        raise ValueError(f"Optimization failed: {result.message}")
+    
+    return result.x
 
-    # Initialize results
-    riesgos = []
-    retornos = []
-    pesos = []
-
-    # Iterate over each target return
-    for mu in retornos_objetivo:
-        lambda1 = (C - B * mu) / D
-        lambda2 = (A * mu - B) / D
-        w = lambda1 * inv_cov_matrix @ ones + lambda2 * inv_cov_matrix @ media_retornos
-
-        # Calculate risk and store results
-        riesgo = np.sqrt(w.T @ cov_matrix @ w)
-        riesgos.append(riesgo)
-        retornos.append(mu)
-        pesos.append(w)
-
-    return riesgos, retornos, pesos
-
-# Plot efficient frontier for each industry
-def graficar_frontera_eficiente(media_retornos, cov_matrix, riesgos, retornos, tickers_info, industria):
-    fig = go.Figure()
-
-    # Points for stocks with full names
-    for ticker, (nombre_completo, _) in tickers_info.items():
-        i = list(tickers_info.keys()).index(ticker)  # Get ticker index
-        fig.add_trace(go.Scatter(
-            x=[np.sqrt(cov_matrix.iloc[i, i])],  # Standard deviation
-            y=[media_retornos.iloc[i]],  # Expected return using iloc[]
-            mode='markers+text',
-            text=nombre_completo,  # Display full name instead of ticker
-            name=ticker,
-            textposition="top center",
-            marker=dict(size=10, color="red", line=dict(width=1))
-        ))
-
-    # Efficient frontier
-    fig.add_trace(go.Scatter(
-        x=riesgos,
-        y=retornos,
-        mode='lines',
-        name='Efficient Frontier',
-        line=dict(color='blue', width=2)
-    ))
-
-    fig.update_layout(
-        title=f"Efficient Frontier for the {industria} Industry",
-        xaxis_title="Risk (Standard Deviation)",
-        yaxis_title="Expected Return",
-        showlegend=True,
-        width=1200,  # Figure width in pixels
-        height=800   # Figure height in pixels
-    )
-
-    return fig
-
-# Check if a ticker is active
-def is_ticker_active(ticker, start_date, end_date):
-    try:
-        data = yf.download(ticker, start=start_date, end=end_date)
-        if data.empty:
-            print(f"Warning: {ticker} has no data within the given date range.")
-            return False
-        return True
-    except Exception as e:
-        print(f"Error fetching data for {ticker}: {e}")
-        return False
+# Generate portfolios for each optimization model
+def generar_portafolios(media_retornos, cov_matrix):
+    portafolios = {
+        'Mínima Varianza': optimizar_pesos(cov_matrix, objetivo='min_var'),
+        'Tangente (Sharpe)': optimizar_pesos(cov_matrix, media_retornos, objetivo='max_sharpe'),
+        'Igual Peso': np.ones(len(media_retornos)) / len(media_retornos),
+    }
+    return portafolios
 
 
 # Fecha de inicio y fin
@@ -372,73 +317,205 @@ end_date = '2024-11-24'
 precios, retornos = obtener_datos(tickers_info, start_date, end_date)
 media_retornos, cov_matrix = calcular_metricas(retornos)
 
-# Agrupar los tickers por industria y excluir los inactivos
+print(f"Obteniendo info financiera en {time.time() - start_time:.2f}.")
+
+
+# Agrupar los tickers por industria
 industries = {}
 for ticker, (nombre_completo, industria) in tickers_info.items():
-    if is_ticker_active(ticker, start_date, end_date):  # Comprobar si el ticker tiene datos válidos
-        if industria not in industries:
-            industries[industria] = []
-        industries[industria].append(ticker)
+    if industria not in industries:
+        industries[industria] = []
+    industries[industria].append(ticker)
 
-# Recorrer cada industria para calcular la frontera eficiente y el mix de activos
+# Generar portafolios por industria
 for industria, tickers in industries.items():
-    # Filtrar tickers disponibles en precios para esta industria
+    # Filtrar los tickers disponibles en los precios
     tickers_disponibles = [ticker for ticker in tickers if ticker in precios.columns]
-
-    if tickers_disponibles:
-        # Calcular frontera eficiente para la industria
-        riesgos, retornos_frontera, pesos = frontera_eficiente(
-            media_retornos[tickers_disponibles], 
-            cov_matrix.loc[tickers_disponibles, tickers_disponibles]
-        )
-
-        # Verificación de que los resultados no están vacíos
-        if not riesgos or not retornos_frontera or not pesos:
-            print(f"Error al calcular la frontera eficiente para la industria {industria}. Verifica los datos.")
-        else:
-            # Obtener el mix de activos sugerido (puedes elegir el portafolio con el retorno máximo, mínimo riesgo, etc.)
-            indice_optimo = np.argmax(retornos_frontera)
-            pesos_optimos = pesos[indice_optimo]
-
-            # Normalizar los pesos para que sumen 1 y asegurarnos de que no haya valores negativos
-            pesos_optimos = np.maximum(pesos_optimos, 0)  # Eliminar los pesos negativos
-            pesos_optimos = pesos_optimos / np.sum(pesos_optimos)  # Normalizar los pesos para que sumen 1
-            
-            # Mostrar el mix sugerido por industria
-            print(f"\nMix sugerido por el modelo para la industria {industria}:")
-            
-            # Crear una lista de tuplas con ticker, nombre y peso
-            mix_sugerido = [(tickers_info[ticker], ticker, pesos_optimos[i] * 100) for i, ticker in enumerate(tickers_disponibles)]
-            
-            # Ordenar la lista de mayor a menor según el peso (porcentaje)
-            mix_sugerido = sorted(mix_sugerido, key=lambda x: x[2], reverse=True)
-            
-            # Imprimir el mix ordenado
-            for nombre, ticker, peso in mix_sugerido:
-                print(f"{nombre} ({ticker}): {peso:.2f}%")
-    else:
-        print(f"No hay tickers disponibles para la industria {industria}.")
-
-
-# Generate plots and save to HTML file
-html_filename = 'efficient_frontier_industries.html'
-with open(html_filename, 'w', encoding='utf-8') as f:  # UTF-8 encoding
-    f.write('<html><body>')
     
+    if tickers_disponibles:
+        # Calcular métricas para los tickers disponibles
+        sub_retornos = retornos[tickers_disponibles]
+        sub_media_retornos = sub_retornos.mean() * 252
+        sub_cov_matrix = sub_retornos.cov() * 252
+        
+        # Generar portafolios optimizados
+        portafolios = generar_portafolios(sub_media_retornos, sub_cov_matrix)
+
+# Función para mostrar la barra de progreso en la consola
+def mostrar_progreso(progreso, total, largo_barra=50):
+    """
+    Muestra la barra de progreso en la consola sin usar sys.
+    
+    :param progreso: Número actual de la iteración.
+    :param total: Número total de iteraciones.
+    :param largo_barra: El largo máximo de la barra de progreso.
+    """
+    porcentaje = (progreso / total) * 100
+    barra = '#' * int(porcentaje // 2) + '-' * (largo_barra - int(porcentaje // 2))
+    print(f'\r[{barra}] {porcentaje:.2f}%', end='')  # Utiliza `end=''` para evitar salto de línea
+    if progreso == total:  # Si es el último progreso, realiza un salto de línea.
+        print()
+
+# Obtener información financiera de todos los tickers
+def obtener_informacion_financiera(tickers):
+    info_financiera = {}
+    total_tickers = len(tickers)  # Número total de tickers
+    
+    for i, ticker in enumerate(tickers):
+        try:
+            info = yf.Ticker(ticker).info
+            info_financiera[ticker] = {
+                "P/E": info.get("trailingPE", 0),
+                "EPS": info.get("trailingEps", 0),
+                "BV": info.get("bookValue", 0),
+                "Div Yld": info.get("dividendYield", 0),
+                "Div/Sh": info.get("dividendRate", 0),
+                "D/E": info.get("debtToEquity", 0),
+                "Beta": info.get("beta", 0),
+                "ROI": info.get("returnOnInvestment", 0),
+                "ROE": info.get("returnOnEquity", 0),
+                "Vol": info.get("fiftyDayAverage", 0),
+            }
+        except Exception as e:
+            print(f"Error fetching data for {ticker}: {e}")
+            info_financiera[ticker] = {key: 0 for key in [
+                "P/E", "EPS", "BV", "Div Yld", "Div/Sh", "D/E", "Beta", "ROI", "ROE", "Vol"
+            ]}
+        
+        # Actualizar la barra de progreso
+        mostrar_progreso(i + 1, total_tickers)  # +1 porque las listas son 0-indexadas
+
+    return info_financiera
+
+# Recopilar datos financieros una sola vez
+all_tickers = list(tickers_info.keys())
+info_financiera = obtener_informacion_financiera(all_tickers)
+
+print(f"Imprimiendo resultados en en {time.time() - start_time:.2f}.")
+
+
+# Generar portafolios por industria con información financiera
+html_filename = 'portfolios_optimizados.html'
+with open(html_filename, 'w', encoding='utf-8') as f:  # UTF-8 encoding
+    f.write('<html>')
+
+    # Añadir estilos CSS en el <head> para que el índice esté siempre en azul
+    f.write("""
+    <head>
+        <style>
+            #index a {
+                color: blue;
+                text-decoration: none;
+            }
+            #index a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+    """)
+
+    # Agregar JavaScript para ordenar tablas
+    f.write("""
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tables = document.querySelectorAll("table");
+    
+            tables.forEach(function (table) {
+                const headers = table.querySelectorAll("th");
+    
+                headers.forEach(function (header, index) {
+                    header.addEventListener('click', function () {
+                        sortTable(table, index);
+                    });
+                });
+            });
+    
+            function sortTable(table, colIndex) {
+                const rows = Array.from(table.rows).slice(1);
+    
+                rows.sort(function (rowA, rowB) {
+                    const cellA = rowA.cells[colIndex].innerText.trim();
+                    const cellB = rowB.cells[colIndex].innerText.trim();
+    
+                    // Intentar parsear como números (incluye manejo de porcentajes)
+                    const valueA = parseValue(cellA);
+                    const valueB = parseValue(cellB);
+    
+                    if (!isNaN(valueA) && !isNaN(valueB)) {
+                        return valueB - valueA; // Orden numérico descendente
+                    } else {
+                        return cellA.localeCompare(cellB); // Orden alfabético
+                    }
+                });
+    
+                rows.forEach(function (row) {
+                    table.appendChild(row);
+                });
+            }
+    
+            function parseValue(value) {
+                // Remover símbolos como "%" y convertir a número
+                return parseFloat(value.replace('%', '').trim());
+            }
+        });
+    </script>
+    """)
+
+    # Índice al inicio
+    f.write('<h1>Portfolio Optimization - Index</h1>')
+    f.write('<ul id="index">')
+    for industria in industries.keys():
+        f.write(f'<li><a href="#{industria.replace(" ", "_")}">{industria} Industry</a></li>')
+    f.write('</ul>')
+
+    # Iterar sobre las industrias
     for industria, tickers in industries.items():
-        # Filter available tickers in the prices (those that have no NaN)
         tickers_disponibles = [ticker for ticker in tickers if ticker in precios.columns]
 
-        # Calculate efficient frontier
-        riesgos, retornos, _ = frontera_eficiente(media_retornos[tickers_disponibles], cov_matrix.loc[tickers_disponibles, tickers_disponibles])
+        if tickers_disponibles:
+            # Calcular portafolios optimizados
+            sub_retornos = retornos[tickers_disponibles]
+            sub_media_retornos = sub_retornos.mean() * 252
+            sub_cov_matrix = sub_retornos.cov() * 252
+            portafolios = generar_portafolios(sub_media_retornos, sub_cov_matrix)
 
-        # Generate plot for the industry
-        fig = graficar_frontera_eficiente(media_retornos[tickers_disponibles], cov_matrix.loc[tickers_disponibles, tickers_disponibles], riesgos, retornos, {ticker: tickers_info[ticker] for ticker in tickers_disponibles}, industria)
-        
-        # Write each figure as HTML inside the file, one below the other
-        f.write(f'<h2>{industria} Industry</h2>')
-        f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))  # Include Plotly.js from CDN
+            # Agregar una sección por industria
+            f.write(f'<h2 id="{industria.replace(" ", "_")}">{industria} Industry</h2>')
+            f.write('<table border="1"><tr><th>Activo</th><th>Ticker</th>')
+
+            # Agregar columnas de información financiera
+            financial_headers = ["P/E", "EPS", "BV", "Div Yld", "Div/Sh", "D/E", "Beta", "ROI", "ROE", "Vol"]
+            for header in financial_headers:
+                f.write(f'<th>{header}</th>')
+
+            # Agregar columnas de los modelos de optimización
+            for modelo in portafolios.keys():
+                f.write(f'<th>{modelo}</th>')
+
+            f.write('</tr>')
+
+            # Generar filas con datos financieros y portafolios
+            for i, ticker in enumerate(tickers_disponibles):
+                f.write(f'<tr><td>{tickers_info[ticker][0]}</td><td>{ticker}</td>')
+
+                # Agregar columnas de información financiera
+                for value in info_financiera[ticker].values():
+                    f.write(f'<td>{value:.2f}</td>')
+
+                # Agregar columnas de portafolios optimizados
+                for modelo, pesos in portafolios.items():
+                    peso = pesos[i] * 100  # Convertir a porcentaje
+                    f.write(f'<td>{peso:.2f}%</td>')
+
+                f.write('</tr>')
+
+            f.write('</table><br>')
+            f.write(f'<button onclick="window.location.href=\'#\'">Back to Index</button>')
 
     f.write('</body></html>')
 
-print(f"All charts have been saved to {html_filename}")
+print(f"Portfolio mixes have been saved to {html_filename}")
+
+
+
