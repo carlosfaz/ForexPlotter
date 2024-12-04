@@ -236,7 +236,10 @@ tickers_info = {**ticker_tech, **ticker_bank, **ticker_consumer, **ticker_health
                 **ticker_energy, **ticker_industrials, **ticker_utilities, 
                 **ticker_retail, **ticker_logistics}
 
-
+tickers_info = {
+    "GC=F": ("Gold.", "Comodities"),
+    "MXN=X": ("USD/MXN", "Forex")
+}
 
 def obtener_datos(ticker_symbol, period, interval):
     """Obtiene los datos históricos de un ticker con el periodo e intervalo especificados."""
@@ -511,7 +514,7 @@ def mostrar_barra_progreso(actual, total, longitud=50):
 
 # Bucle para procesar los tickers
 for ticker in tickers_info.keys():
-    for periodo, intervalo in [("1mo", "15m")]:  # Versión anemica
+    for periodo, intervalo in [("1d","1m"),]:  # Versión anemica
         data, weekend_jumps = obtener_datos(ticker, periodo, intervalo)
         if data is not None:
             # Mostrar estadísticas solo si el intervalo es de 1 minuto
@@ -520,6 +523,7 @@ for ticker in tickers_info.keys():
             index_id += 1
         current_task += 1
         mostrar_barra_progreso(current_task, total_tasks)
+
 
 # Al finalizar, asegurarse de imprimir una nueva línea para limpiar la consola
 print("\nProcesamiento completado.")

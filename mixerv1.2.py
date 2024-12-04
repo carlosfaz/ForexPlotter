@@ -241,6 +241,12 @@ tickers_info = {**ticker_tech, **ticker_bank, **ticker_consumer, **ticker_health
                 **ticker_energy, **ticker_industrials, **ticker_utilities, 
                 **ticker_retail, **ticker_logistics}
 
+a=pd.read_csv("active_tickers_info.csv")
+
+# Supongamos que 'df' es el DataFrame que tienes
+tickers_info = dict(zip(a['Ticker'], zip(a['Name'], a['Sector'])))
+
+
 
 # Función para obtener datos históricos
 def obtener_datos(tickers_info, start_date, end_date):
@@ -254,6 +260,7 @@ def obtener_datos(tickers_info, start_date, end_date):
         retornos = retornos.dropna()
 
     return precios, retornos
+
 
 # Calcular métricas: media de retornos y matriz de covarianza
 def calcular_metricas(retornos):

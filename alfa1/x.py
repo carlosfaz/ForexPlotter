@@ -1,37 +1,82 @@
-import pandas as pd
-import yfinance as yf
+import requests
+from bs4 import BeautifulSoup
 
-# URL de la página de Wikipedia que contiene la lista de los componentes del S&P 500
-url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+# URL de la página
+url = "https://eoddata.com/symbols.aspx"
 
-# Leer la tabla de la página web
-tables = pd.read_html(url)
+# Realizar la solicitud HTTP para obtener el contenido de la página
+response = requests.get(url)
 
-# La tabla que contiene los tickers se encuentra generalmente en la primera
-df = tables[0]
+# Comprobar si la solicitud fue exitosa
+if response.status_code == 200:
+    # Analizar el contenido de la página con BeautifulSoup
+    soup = BeautifulSoup(response.content, "html.parser")
 
-# Extraer solo los tickers de la columna 'Symbol'
-tickers = df['Symbol'].tolist()
+    # Buscar la tabla que contiene los símbolos
+    table = soup.find('table', {'class': 'data'})
+    
+    # Lista para almacenar los tickers
+    tickers = []
 
-# Check if a ticker is active
-def is_ticker_active(ticker, start_date, end_date):
-    try:
-        data = yf.download(ticker, start=start_date, end=end_date)
-        if data.empty:
-            print(f"Warning: {ticker} has no data within the given date range.")
-            return False
-        return True
-    except Exception as e:
-        print(f"Error fetching data for {ticker}: {e}")
-        return False
+    # Iterar sobre las filas de la tabla
+    for row in table.find_all('tr')[1:]:  # Empezamos en la segunda fila para saltarnos los encabezados
+        cols = row.find_all('td')
+        if len(cols) > 1:
+            ticker = cols[0].text.strip()  # Primer columna contiene el ticker
+            tickers.append(ticker)
 
-# Fecha de ejemplo (puedes ajustarlo según necesites)
-start_date = '2020-01-01'
-end_date = '2024-12-31'
+    # Imprimir los primeros 10 tickers obtenidos
+    print(tickers[:10])
 
-# Verificar cada ticker si está activo
-for ticker in tickers:
-    if is_ticker_active(ticker, start_date, end_date):
-        print(f"{ticker} is active.")
+    # Exportar los tickers a un archivo de texto
+    with open("tickers.txt", "w") as file:
+        for ticker in tickers:
+            file.write(f"{ticker}\n")
+
+    print(f"Se han guardado {len(tickers)} tickers en 'tickers.txt'")
+
+else:
+    print(f"Error al obtener la página: {response.status_code}")
+
+import requests
+from bs4 import BeautifulSoup
+
+# URL de la página
+url = "https://eoddata.com/symbols.aspx"
+
+# Realizar la solicitud HTTP para obtener el contenido de la página
+response = requests.get(url)
+
+# Comprobar si la solicitud fue exitosa
+if response.status_code == 200:
+    # Analizar el contenido de la página con BeautifulSoup
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    # Buscar la tabla que contiene los símbolos
+    table = soup.find('table')  # Sin especificar la clase por ahora
+
+    if table:
+        # Lista para almacenar los tickers
+        tickers = []
+
+        # Iterar sobre las filas de la tabla
+        for row in table.find_all('tr')[1:]:  # Empezamos en la segunda fila para saltarnos los encabezados
+            cols = row.find_all('td')
+            if len(cols) > 1:
+                ticker = cols[0].text.strip()  # Primer columna contiene el ticker
+                tickers.append(ticker)
+
+        # Imprimir los primeros 10 tickers obtenidos
+        print(tickers[:10])
+
+        # Exportar los tickers a un archivo de texto
+        with open("tickers.txt", "w") as file:
+            for ticker in tickers:
+                file.write(f"{ticker}\n")
+
+        print(f"Se han guardado {len(tickers)} tickers en 'tickers.txt'")
     else:
-        print(f"{ticker} is not active.")
+        print("No se pudo encontrar la tabla de símbolos en la página.")
+else:
+    print(f"Error al obtener la página: {response.status_code}")
+
