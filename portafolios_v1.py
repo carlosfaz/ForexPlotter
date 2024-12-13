@@ -1,245 +1,12 @@
 import yfinance as yf
-import plotly.graph_objects as go
 import pandas as pd
-import time
-start_time = time.time()
+import plotly.graph_objects as go
 
-# Diccionarios por industria
-ticker_tech = {
-    "AAPL": ("Apple Inc.", "Technology"),
-    "ADBE": ("Adobe Inc.", "Technology"),
-    "AMD": ("Advanced Micro Devices Inc.", "Technology"),
-    "GOOG": ("Alphabet Inc. (Google)", "Technology"),
-    "GOOGL": ("Alphabet Inc. (Google)", "Technology"),
-    "HPQ": ("HP Inc.", "Technology"),
-    "IBM": ("International Business Machines Corporation", "Technology"),
-    "INTC": ("Intel Corporation", "Technology"),
-    "MSFT": ("Microsoft Corporation", "Technology"),
-    "NVDA": ("NVIDIA Corporation", "Technology"),
-    "ORCL": ("Oracle Corporation", "Technology"),
-    "PANW": ("Palo Alto Networks Inc.", "Technology"),
-    "QCOM": ("Qualcomm Inc.", "Technology"),
-    "SNOW": ("Snowflake Inc.", "Technology"),
-    "TXN": ("Texas Instruments Inc.", "Technology"),
-    "ZM": ("Zoom Video Communications Inc.", "Technology"),
-    "CRM": ("Salesforce Inc.", "Technology"),
-    "TTD": ("The Trade Desk Inc.", "Technology"),
-    "SHOP": ("Shopify Inc.", "Technology"),
-    "ASML": ("ASML Holding NV", "Technology"),
-    "PYPL": ("PayPal Holdings Inc.", "Technology"),
-    "SPOT": ("Spotify Technology S.A.", "Technology"),
-    "INTU": ("Intuit Inc.", "Technology"),
-    "SNPS": ("Synopsys Inc.", "Technology"),
-    "MDB": ("MongoDB Inc.", "Technology"),
-    "ZS": ("Zscaler Inc.", "Technology"),
-    "NOW": ("ServiceNow Inc.", "Technology"),
-    "RBLX": ("Roblox Corporation", "Technology"),
-    "VRSN": ("Verisign Inc.", "Technology"),
-    "FTNT": ("Fortinet Inc.", "Technology"),
-    "OKTA": ("Okta Inc.", "Technology"),
-    "AMZN": ("Amazon.com, Inc.", "Technology"),
-    "ADSK": ("Autodesk Inc.", "Technology"),
-    "NET": ("Cloudflare Inc.", "Technology"),
-    "TEAM": ("Atlassian Corporation", "Technology"),
-    "WDAY": ("Workday Inc.", "Technology")
-}
+#tickers = ["AAPL", "TSLA"]
 
-ticker_bank = {
-    "AXP": ("American Express Company", "Finance"),
-    "BLK": ("BlackRock Inc.", "Finance"),
-    "BAC": ("Bank of America Corporation", "Finance"),
-    "C": ("Citigroup Inc.", "Finance"),
-    "COF": ("Capital One Financial Corp.", "Finance"),
-    "GS": ("Goldman Sachs Group Inc.", "Finance"),
-    "ICE": ("Intercontinental Exchange Inc.", "Finance"),
-    "JPM": ("JPMorgan Chase & Co.", "Finance"),
-    "MS": ("Morgan Stanley", "Finance"),
-    "MSC": ("MSCI Inc.", "Finance"),
-    "PNC": ("PNC Financial Services", "Finance"),
-    "SCHW": ("Charles Schwab Corporation", "Finance"),
-    "V": ("Visa Inc.", "Finance"),
-    "WFC": ("Wells Fargo & Co.", "Finance"),
-    "MSCI": ("MSCI Inc.", "Finance"),
-    "AIG": ("American International Group Inc.", "Finance"),
-    "ALL": ("Allstate Corporation", "Finance"),
-    "AON": ("Aon PLC", "Finance"),
-    "BRK-B": ("Berkshire Hathaway Inc.", "Finance"),
-    "SPGI": ("S&P Global Inc.", "Finance"),
-    "RJF": ("Raymond James Financial Inc.", "Finance"),
-    "CINF": ("Cincinnati Financial Corporation", "Finance"),
-    "IAG": ("Iamgold Corporation", "Finance"),
-    "SYF": ("Synchrony Financial", "Finance"),
-    "BLKB": ("Blackboard Inc.", "Finance"),
-    "STT": ("State Street Corporation", "Finance"),
-    "CME": ("CME Group Inc.", "Finance"),
-    "PGR": ("Progressive Corporation", "Finance"),
-    "TROW": ("T. Rowe Price Group Inc.", "Finance"),
-    "TRV": ("The Travelers Companies Inc.", "Finance")
-}
 
-ticker_consumer = {
-    "BKNG": ("Booking Holdings Inc.", "Consumer"),
-    "CMG": ("Chipotle Mexican Grill Inc.", "Consumer"),
-    "CL": ("Colgate-Palmolive Company", "Consumer"),
-    "CPB": ("Campbell Soup Company", "Consumer"),
-    "DIS": ("The Walt Disney Company", "Consumer"),
-    "HLT": ("Hilton Worldwide Holdings Inc.", "Consumer"),
-    "K": ("Kellogg Company", "Consumer"),
-    "KO": ("Coca-Cola Company", "Consumer"),
-    "KDP": ("Keurig Dr Pepper Inc.", "Consumer"),
-    "MCD": ("McDonald's Corporation", "Consumer"),
-    "PEP": ("PepsiCo Inc.", "Consumer"),
-    "PG": ("Procter & Gamble Co.", "Consumer"),
-    "RL": ("Ralph Lauren Corporation", "Consumer"),
-    "TAP": ("Molson Coors Beverage Company", "Consumer"),
-    "WHR": ("Whirlpool Corporation", "Consumer"),
-    "YUM": ("Yum! Brands Inc.", "Consumer"),
-    "SBUX": ("Starbucks Corporation", "Consumer"),
-    "SYY": ("Sysco Corporation", "Consumer"),
-    "TSN": ("Tyson Foods Inc.", "Consumer"),
-    "BUD": ("Anheuser-Busch InBev", "Consumer"),
-    "KHC": ("Kraft Heinz Company", "Consumer"),
-    "CLX": ("Clorox Company", "Consumer"),
-    "PRGO": ("Perrigo Company", "Consumer"),
-    "MCK": ("McKesson Corporation", "Consumer"),
-    "COTY": ("Coty Inc.", "Consumer"),
-    "EXPE": ("Expedia Group Inc.", "Consumer"),
-    "MELI": ("Mercado Libre Inc.", "Consumer"),
-    "QSR": ("Restaurant Brands International", "Consumer"),
-    "MDLZ": ("Mondelez International", "Consumer"),
-    "HOG": ("Harley-Davidson Inc.", "Consumer"),
-    "CVS": ("CVS Health Corporation", "Consumer"),
-    "GIS": ("General Mills Inc.", "Consumer"),
-    "NKE": ("Nike Inc.", "Consumer"),
-    "TGT": ("Target Corporation", "Consumer"),
-    "WMT": ("Walmart Inc.", "Consumer")
-}
-
-ticker_healthcare = {
-    "ABBV": ("AbbVie Inc.", "Healthcare"),
-    "ABT": ("Abbott Laboratories", "Healthcare"),
-    "AMGN": ("Amgen Inc.", "Healthcare"),
-    "BAX": ("Baxter International Inc.", "Healthcare"),
-    "BMY": ("Bristol-Myers Squibb", "Healthcare"),
-    "CI": ("Cigna Group", "Healthcare"),
-    "DHR": ("Danaher Corporation", "Healthcare"),
-    "GILD": ("Gilead Sciences Inc.", "Healthcare"),
-    "HUM": ("Humana Inc.", "Healthcare"),
-    "IDXX": ("IDEXX Laboratories Inc.", "Healthcare"),
-    "IQV": ("IQVIA Holdings Inc.", "Healthcare"),
-    "ISRG": ("Intuitive Surgical Inc.", "Healthcare"),
-    "JNJ": ("Johnson & Johnson", "Healthcare"),
-    "LLY": ("Eli Lilly and Co.", "Healthcare"),
-    "MRK": ("Merck & Co. Inc.", "Healthcare"),
-    "MDT": ("Medtronic PLC", "Healthcare"),
-    "PFE": ("Pfizer Inc.", "Healthcare"),
-    "REGN": ("Regeneron Pharmaceuticals", "Healthcare"),
-    "SYK": ("Stryker Corporation", "Healthcare"),
-    "UNH": ("UnitedHealth Group Incorporated", "Healthcare"),
-    "VRTX": ("Vertex Pharmaceuticals", "Healthcare"),
-    "BSX": ("Boston Scientific Corporation", "Healthcare"),
-    "BDX": ("Becton, Dickinson and Company", "Healthcare"),
-    "EW": ("Edwards Lifesciences Corporation", "Healthcare"),
-    "ZBH": ("Zimmer Biomet Holdings Inc.", "Healthcare")
-}
-
-ticker_energy = {
-    "COP": ("ConocoPhillips", "Energy"),
-    "CVX": ("Chevron Corporation", "Energy"),
-    "EOG": ("EOG Resources Inc.", "Energy"),
-    "FTI": ("TechnipFMC", "Energy"),
-    "APA": ("APA Corporation", "Energy"),
-    "BP": ("BP PLC", "Energy"),
-    "BKR": ("Baker Hughes Company", "Energy"),
-    "XLE": ("Energy Select Sector SPDR Fund", "Energy"),
-    "HAL": ("Halliburton Company", "Energy"),
-    "HES": ("Hess Corporation", "Energy"),
-    "ENB": ("Enbridge Inc.", "Energy"),
-    "KMI": ("Kinder Morgan Inc.", "Energy"),
-    "TRP": ("TransCanada Corporation", "Energy"),
-    "KOS": ("Kosmos Energy Ltd.", "Energy"),
-    "OXY": ("Occidental Petroleum Corporation", "Energy"),
-    "SLB": ("Schlumberger Limited", "Energy"),
-    "WMB": ("Williams Companies Inc.", "Energy"),
-    "XOM": ("Exxon Mobil Corporation", "Energy")
-}
-
-ticker_industrials = {
-    "CAT": ("Caterpillar Inc.", "Industrials"),
-    "CSX": ("CSX Corporation", "Industrials"),
-    "DE": ("Deere & Co.", "Industrials"),
-    "EMR": ("Emerson Electric Co.", "Industrials"),
-    "FDX": ("FedEx Corporation", "Industrials"),
-    "GD": ("General Dynamics Corporation", "Industrials"),
-    "GE": ("General Electric Company", "Industrials"),
-    "HON": ("Honeywell International Inc.", "Industrials"),
-    "ITW": ("Illinois Tool Works Inc.", "Industrials"),
-    "LMT": ("Lockheed Martin Corporation", "Industrials"),
-    "MMM": ("3M Company", "Industrials"),
-    "NSC": ("Norfolk Southern Corporation", "Industrials"),
-    "ROK": ("Rockwell Automation", "Industrials"),
-    "RSG": ("Republic Services Inc.", "Industrials"),
-    "UPS": ("United Parcel Service", "Industrials"),
-    "XPO": ("XPO Logistics Inc.", "Industrials"),
-    "ARCB": ("ArcBest Corporation", "Logistics"),
-    "JBHT": ("J.B. Hunt Transport Services Inc.", "Logistics"),
-    "KNX": ("Knight-Swift Transportation Holdings", "Logistics"),
-    "MATX": ("Matson Inc.", "Logistics"),
-    "ODFL": ("Old Dominion Freight Line Inc.", "Logistics"),
-    "R": ("Ryder System Inc.", "Logistics"),
-    "UNP": ("Union Pacific Corporation", "Logistics"),
-    "WERN": ("Werner Enterprises Inc.", "Logistics"),
-    "GWW": ("W.W. Grainger Inc.", "Industrials")
-}
-
-ticker_utilities = {
-    "AEP": ("American Electric Power Company Inc.", "Utilities"),
-    "DUK": ("Duke Energy Corporation", "Utilities"),
-    "ED": ("Consolidated Edison Inc.", "Utilities"),
-    "EXC": ("Exelon Corporation", "Utilities"),
-    "NEE": ("NextEra Energy Inc.", "Utilities"),
-    "PCG": ("PG&E Corporation", "Utilities"),
-    "SRE": ("Sempra Energy", "Utilities"),
-    "SO": ("Southern Company", "Utilities"),
-    "WEC": ("WEC Energy Group Inc.", "Utilities"),
-    "XEL": ("Xcel Energy Inc.", "Utilities")
-}
-ticker_retail = {
-    "BBY": ("Best Buy Co. Inc.", "Retail"),
-    "COST": ("Costco Wholesale Corporation", "Retail"),
-    "JWN": ("Nordstrom Inc.", "Retail"),
-    "KSS": ("Kohl's Corporation", "Retail"),
-    "DG": ("Dollar General Corporation", "Retail"),
-    "FL": ("Foot Locker Inc.", "Retail"),
-    "TJX": ("TJX Companies Inc.", "Retail"),
-    "HD": ("Home Depot Inc.", "Retail"),
-    "LOW": ("Lowe's Companies Inc.", "Retail"),
-    "M": ("Macy's Inc.", "Retail"),
-    "ULTA": ("Ulta Beauty Inc.", "Retail")
-}
-
-ticker_logistics = {
-    "ARCB": ("ArcBest Corporation", "Logistics"),
-    "JBHT": ("J.B. Hunt Transport Services Inc.", "Logistics"),
-    "KNX": ("Knight-Swift Transportation Holdings", "Logistics"),
-    "MATX": ("Matson Inc.", "Logistics"),
-    "ODFL": ("Old Dominion Freight Line Inc.", "Logistics"),
-    "R": ("Ryder System Inc.", "Logistics"),
-    "UNP": ("Union Pacific Corporation", "Logistics"),
-    "WERN": ("Werner Enterprises Inc.", "Logistics")
-}
-
-# Ahora unimos todos los diccionarios en uno solo
-
-# Unir todos los diccionarios en un solo diccionario
-tickers_info = {**ticker_tech, **ticker_bank, **ticker_consumer, **ticker_healthcare, 
-                **ticker_energy, **ticker_industrials, **ticker_utilities, 
-                **ticker_retail, **ticker_logistics}
-
-tickers_info = {
-    "GC=F": ("Gold.", "Comodities"),
-    "MXN=X": ("USD/MXN", "Forex")
-}
+df=pd.read_csv("mis_tickers.txt")
+tickers = df["0"].to_list()
 
 def obtener_datos(ticker_symbol, period, interval):
     """Obtiene los datos históricos de un ticker con el periodo e intervalo especificados."""
@@ -247,7 +14,7 @@ def obtener_datos(ticker_symbol, period, interval):
     data = ticker.history(period=period, interval=interval)
     
     if data.empty:
-        print(f"No se han encontrado datos para {tickers_info[ticker_symbol]} ({ticker_symbol}).")
+        print(f"No se han encontrado datos para {ticker_symbol}.")
         return None, None
 
     # Filtrar saltos mayores a 1 día
@@ -274,7 +41,7 @@ def crear_grafica(data, weekend_jumps, periodo, intervalo, ticker_symbol, index_
         high=data['High'],
         low=data['Low'],
         close=data['Close'],
-        name=f'{tickers_info[ticker_symbol][0]}',
+        name=f'{ticker_symbol}',  # Usar solo el ticker en el nombre
         increasing_line_color='green',
         decreasing_line_color='red'
     ))
@@ -295,8 +62,8 @@ def crear_grafica(data, weekend_jumps, periodo, intervalo, ticker_symbol, index_
     # Ajustar el diseño para omitir los huecos de tiempo
     fig.update_xaxes(type='category')
     
-    # Titulo dinámico basado en periodo, intervalo, y sector
-    title = f"{tickers_info[ticker_symbol][0]} ({ticker_symbol}) - Sector: {tickers_info[ticker_symbol][1]}, Periodo: {periodo}, Intervalo: {intervalo}"
+    # Titulo dinámico basado en periodo e intervalo
+    title = f"{ticker_symbol} - Periodo: {periodo}, Intervalo: {intervalo}"
 
     fig.update_layout(
         title=title,
@@ -312,14 +79,6 @@ def crear_grafica(data, weekend_jumps, periodo, intervalo, ticker_symbol, index_
     return fig
 
 
-
-# Función para formatear los valores numéricos a "1,234.56"
-def formatear_numeros(val):
-    try:
-        return f"{val:,.2f}"  # Formato de número con comas y 2 decimales
-    except:
-        return val  # Si no es un número, lo dejamos tal cual
-
 # Función para mostrar una barra de progreso
 def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, length=50, fill='█'):
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
@@ -330,17 +89,20 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
     if iteration == total: 
         print()
 
-# Función optimizada para obtener la información financiera abreviada
-def get_financial_info(tickers_info):
+
+# Función para obtener la información financiera
+def get_financial_info(tickers):
     financial_data = []
-    total_tickers = len(tickers_info)
-    for i, ticker in enumerate(tickers_info):
+    total_tickers = len(tickers)
+    for i, ticker in enumerate(tickers):
         stock = yf.Ticker(ticker)
         info = stock.info
         
         # Recopilando la información financiera abreviada
         financial_info = {
             "Ticker": ticker,
+            "Nombre": info.get("longName", 0),
+            "Sector": info.get("sector", 0),
             "P/E": info.get("trailingPE", 0),  # P/E Ratio
             "EPS": info.get("trailingEps", 0),  # Earnings per Share
             "BV": info.get("bookValue", 0),  # Book Value
@@ -373,76 +135,111 @@ def get_financial_info(tickers_info):
     return pd.DataFrame(financial_data)
 
 
-# Función para analizar las acciones
-def analizar_acciones(df, output_filename="resultados.txt"):
-    # Definir las condiciones de filtrado y las columnas para ordenación
-    filtros_y_orden = {
-        'P/E alto (posiblemente sobrevaloradas)': {'condicion': df['P/E'] > 30, 'columna': 'P/E'},
-        'Alta rentabilidad por dividendo': {'condicion': df['Div Yld'] > 0.03, 'columna': 'Div Yld'},
-        'Beta alto (riesgo elevado)': {'condicion': df['Beta'] > 1, 'columna': 'Beta'},
-        'Volumen alto': {'condicion': df['Vol'] > 100, 'columna': 'Vol'},
-        'Alta volatilidad (Rango 52W alto)': {'condicion': df['52W H'] - df['52W L'] > 100, 'columna': '52W Range'},
-        'Alto riesgo (Beta > 1 y P/E > 30)': {'condicion': (df['Beta'] > 1) & (df['P/E'] > 30), 'columna': ['Beta', 'P/E']},
-        'Acciones sin ganancias': {'condicion': df['P/E'] == 0, 'columna': 'P/E'},
-        'Alta relación D/E (alto endeudamiento)': {'condicion': df['D/E'] > 1, 'columna': 'D/E'},
-        'Alto margen bruto': {'condicion': df['GM'] > 0.5, 'columna': 'GM'},
-        'Bajo P/B (menos de 1)': {'condicion': df['P/B'] < 1, 'columna': 'P/B'},
-        'Alto ROE (Rentabilidad sobre el capital)': {'condicion': df['ROE'] > 0.15, 'columna': 'ROE'},
-        'Alto Crecimiento de Ingresos': {'condicion': df['Rev Gr'] > 0.1, 'columna': 'Rev Gr'},
-        'Alto Margen Operativo': {'condicion': df['OM'] > 0.2, 'columna': 'OM'},
-        'Alta Rentabilidad sobre Activos (ROA)': {'condicion': df['ROA'] > 0.1, 'columna': 'ROA'}
-    }
+def agregar_busqueda_y_script(f):
+    """Agrega el campo de búsqueda y el script para ordenar y filtrar las tablas."""
+    busqueda_y_script = """
+    <label for="search">Buscar en la tabla:</label>
+    <input type="text" id="search" onkeyup="filterTable()" placeholder="Buscar...">
+    <br><br>
 
-    # Crear el dataframe para la columna '52W Range' (volatilidad)
-    df['52W Range'] = df['52W H'] - df['52W L']
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tables = document.querySelectorAll("table");
 
-    # Función auxiliar para filtrar, limpiar y ordenar el DataFrame
-    def filtrar_y_ordenar(df, condicion, columna_orden):
-        df_filtrado = df[condicion]  # Filtrar las filas
-        df_filtrado = df_filtrado[(df_filtrado[columna_orden] != 0).all(axis=1)]  # Eliminar filas con valor 0 en columnas relevantes
-        if not df_filtrado.empty:
-            return df_filtrado.sort_values(by=columna_orden, ascending=False)
-        return None
+            tables.forEach(function (table) {
+                const headers = table.querySelectorAll("th");
 
-    # Función auxiliar para generar el resultado del análisis
-    def generar_resultado(categoria, df_filtrado, columnas):
-        resultado = f"\nAcciones con {categoria}:\n"
-        resultado += df_filtrado[['Nombre Ticker', *columnas]].to_string(index=False)
-        resultado += "\n"
-        return resultado
+                headers.forEach(function (header, index) {
+                    header.addEventListener('click', function () {
+                        sortTable(table, index);
+                    });
+                });
+            });
 
-    # Abrir el archivo para escribir los resultados
-    with open(output_filename, "w", encoding="utf-8") as file:
-        # Iterar sobre el diccionario de filtros y ordenarlos
-        for categoria, info in filtros_y_orden.items():
-            columna_orden = [info['columna']] if isinstance(info['columna'], str) else info['columna']
-            df_filtrado = filtrar_y_ordenar(df, info['condicion'], columna_orden)
+            function sortTable(table, colIndex) {
+                const rows = Array.from(table.rows).slice(1);
 
-            if df_filtrado is None:
-                resultado = f"\nNo se encontraron acciones para {categoria}\n"
-                print(resultado, end="")
-                file.write(resultado)
-            else:
-                resultado = generar_resultado(categoria, df_filtrado, columna_orden)
-                print(resultado, end="")
-                file.write(resultado)
+                rows.sort(function (rowA, rowB) {
+                    const cellA = rowA.cells[colIndex].innerText.trim();
+                    const cellB = rowB.cells[colIndex].innerText.trim();
 
-def guardar_graficas_html(html_filename, *figs, df, tickers_info):
-    # Añadir las columnas de nombres de los tickers e industria
-    df['Nombre Ticker'] = df['Ticker'].map(lambda ticker: tickers_info[ticker][0])  # Solo el nombre
-    df['Industria'] = df['Ticker'].map(lambda ticker: tickers_info[ticker][1])  # Solo la industria
+                    const valueA = parseValue(cellA);
+                    const valueB = parseValue(cellB);
 
-    # Reordenar las columnas para que 'Nombre Ticker' y 'Industria' sean las primeras
-    df = df[['Nombre Ticker', 'Industria'] + [col for col in df.columns if col not in ['Nombre Ticker', 'Industria']]]
+                    if (!isNaN(valueA) && !isNaN(valueB)) {
+                        return valueB - valueA; // Orden numérico descendente
+                    } else {
+                        return cellA.localeCompare(cellB); // Orden alfabético
+                    }
+                });
 
-    # Aplicar el formato a las columnas numéricas utilizando `apply` + `map`
-    df = df.apply(lambda col: col.map(formatear_numeros) if col.dtype != 'O' else col)
+                rows.forEach(function (row) {
+                    table.appendChild(row);
+                });
+            }
 
+            function parseValue(value) {
+                return parseFloat(value.replace('%', '').trim());
+            }
+
+            window.filterTable = function() {
+                const input = document.getElementById("search");
+                const filter = input.value.toLowerCase();
+                const rows = document.querySelectorAll("table tr");
+
+                rows.forEach(function(row, index) {
+                    if (index === 0) return;  // Ignorar la primera fila (encabezados)
+
+                    const cells = row.querySelectorAll("td");
+                    let found = false;
+
+                    cells.forEach(function(cell) {
+                        if (cell.innerText.toLowerCase().includes(filter)) {
+                            found = true;
+                        }
+                    });
+
+                    row.style.display = found ? "" : "none";
+                });
+            };
+
+            // Función para copiar la tabla al portapapeles
+            window.copyTableToClipboard = function(tableId) {
+                const table = document.getElementById(tableId);
+                let range, selection;
+
+                if (document.body.createTextRange) {  // Para IE
+                    range = document.body.createTextRange();
+                    range.moveToElementText(table);
+                    range.select();
+                    document.execCommand('copy');
+                } else if (window.getSelection) {  // Para otros navegadores
+                    selection = window.getSelection();
+                    range = document.createRange();
+                    range.selectNodeContents(table);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    document.execCommand('copy');
+                }
+
+                alert("Tabla copiada al portapapeles");
+            };
+        });
+    </script>
+    """
+    f.write(busqueda_y_script)
+
+
+def guardar_graficas_html(html_filename, *figs, df):
+    """Guarda gráficas y datos financieros organizados por sector en un archivo HTML."""
+    # Agrupar los datos por sector
+    sectors = df.groupby("Sector")
+    
     # Guardar la información en HTML
     with open(html_filename, 'w', encoding='utf-8') as f:  # Codificación UTF-8
         # Crear el índice al inicio del archivo HTML
         f.write("<h1 id='top'>Índice de Gráficas y Datos Financieros</h1>\n")
-        f.write("<ul style='columns: 5;'>\n")  # Índice en dos columnas
+        f.write("<ul style='columns: 5;'>\n")  # Índice en varias columnas
         
         # Crear enlaces al índice de los tickers (gráficas)
         for i, fig in enumerate(figs):
@@ -450,84 +247,48 @@ def guardar_graficas_html(html_filename, *figs, df, tickers_info):
             f.write(f'<li><a href="#ticker{i}" style="color:blue;">{ticker_symbol}</a></li>\n')
         f.write("</ul>\n\n")
 
-        # Insertar la tabla del DataFrame con la información financiera
-        f.write("<h2>Información Financiera</h2>\n")
-        # Añadimos el botón para copiar
-        f.write("""
-            <div style='text-align: center; margin-top: 20px;'>
-                <button onclick='copyTable()'>Copiar Tabla</button>
-            </div>
-            <script>
-                function copyTable() {
-                    var range = document.createRange();
-                    range.selectNode(document.getElementById('financialTable'));
-                    window.getSelection().removeAllRanges(); // Limpiar las selecciones existentes
-                    window.getSelection().addRange(range); // Seleccionar la tabla
-                    document.execCommand('copy'); // Copiar la selección al portapapeles
-                    window.getSelection().removeAllRanges(); // Limpiar las selecciones después de copiar
-                    alert('Tabla copiada al portapapeles');
-                }
-            </script>
-        """)
-        # Centramos la tabla usando márgenes y le añadimos un ID único
-        f.write("<div style='display: flex; justify-content: center;'>\n")
-        f.write(df.to_html(index=False, table_id="financialTable", escape=False))  # table_id para identificación
-        f.write("</div>\n")  # Cierre del contenedor centrado
+        # Llamada a la función de búsqueda y ordenación
+        agregar_busqueda_y_script(f)
+
+        # Crear tabla por sector
+        for sector, group in sectors:
+            f.write(f'<h2>Sector: {sector}</h2>\n')
+            # Asegurarse de que los encabezados de las tablas se muestren correctamente
+            f.write(group.to_html(index=False, header=True))
 
         # Guardar las gráficas con sus títulos y asignar ID a cada sección
         for i, fig in enumerate(figs):
-            f.write(f'<a id="ticker{i}"></a>\n')  # Asignar un ID a cada gráfico
-            f.write(f'<h2>{fig.layout.title.text}</h2>\n')  # Título descriptivo (sin industria)
+            f.write(f'<h2 id="ticker{i}">{fig.layout.title.text}</h2>\n')  # Título con ID
+            f.write(f'<button onclick="window.location.href=\'#top\'">Volver al Inicio</button>\n')  # Botón para ir al inicio
             f.write(fig.to_html(full_html=True, include_plotlyjs="cdn"))
-            f.write(f'<br><a href="#top">Ir al inicio</a><br><br>')  # Enlace para ir al inicio
-            f.write("\n")
+            f.write("<br><br>\n")
 
-    print(f"Las gráficas y la tabla han sido guardadas en {html_filename}")
+    print(f"Las gráficas y las tablas por sector han sido guardadas en {html_filename}")
 
-
-# Nombre del archivo HTML
-html_filename = "grafico_precios_historicos.html"
-
-# Obtener la información financiera
-financial_data = get_financial_info(tickers_info)
-df_financial_data = pd.DataFrame(financial_data)
-
-# Crear un DataFrame de pandas para mostrar la información en formato tabular
-print(df_financial_data)
-
-print(f"Imprimiendo graficas")
-
-# Obtener datos y gráficas para cada par de periodo/intervalo
+# Procesar los tickers
 figs = []
 index_id = 0
-
-# Total de iteraciones
-total_tasks = len(tickers_info.keys()) * 1  # Solo 1 intervalo por ticker
+total_tasks = len(tickers) * 1  # Solo 1 intervalo por ticker
 current_task = 0  # Contador para la barra de progreso
 
-# Función para mostrar la barra de progreso
-def mostrar_barra_progreso(actual, total, longitud=50):
-    porcentaje = actual / total
-    completado = int(longitud * porcentaje)
-    barra = f"[{'#' * completado}{'.' * (longitud - completado)}] {actual}/{total} ({porcentaje:.0%})"
-    print(barra, end='\r')  # Mantener la barra en la misma línea
-
 # Bucle para procesar los tickers
-for ticker in tickers_info.keys():
-    for periodo, intervalo in [("1d","1m"),]:  # Versión anemica
+for ticker in tickers:
+    for periodo, intervalo in [("1d", "1m")]:  # Ejemplo de intervalo
         data, weekend_jumps = obtener_datos(ticker, periodo, intervalo)
         if data is not None:
-            # Mostrar estadísticas solo si el intervalo es de 1 minuto
-            fig = crear_grafica(data, weekend_jumps, periodo, intervalo, ticker, f"ticker{index_id}")
+            # Crear gráfico
+            fig = crear_grafica(data, weekend_jumps, periodo, intervalo, ticker, index_id)
             figs.append(fig)
             index_id += 1
         current_task += 1
-        mostrar_barra_progreso(current_task, total_tasks)
+        print_progress_bar(current_task, total_tasks)
 
+# Crear DataFrame de datos financieros
+financial_data = get_financial_info(tickers)
+df_financial_data = pd.DataFrame(financial_data)
 
-# Al finalizar, asegurarse de imprimir una nueva línea para limpiar la consola
+# Guardar en HTML
+html_filename = "grafico_precios_historicos.html"
+guardar_graficas_html(html_filename, *figs, df=df_financial_data)
+
 print("\nProcesamiento completado.")
-
-# Guardar todas las gráficas y la tabla de información financiera juntas en un solo archivo HTML
-guardar_graficas_html(html_filename, *figs, df=df_financial_data, tickers_info=tickers_info)
-
