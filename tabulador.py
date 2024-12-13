@@ -7,12 +7,12 @@ start_time = time.time()
 print(f"Empezando en {time.time() - start_time:.2f}.")
 
 # Leer los tickers desde el archivo
-df=pd.read_csv("alfa1/A2.txt")
+df=pd.read_csv("tickers/sp500x.txt")
 tickers = df["0"].to_list()
 #df = pd.read_csv('sp500.txt', delimiter='\t', on_bad_lines='skip')
 #tickers = df["Symbol"].to_list()[:20]
 
-inactive_tickers = pd.read_csv("inactive_tickers.txt")
+inactive_tickers = pd.read_csv("tickers/inactive_tickers.txt")
 in_tickers = inactive_tickers["0"].to_list()
 tickers = [ticker for ticker in tickers if ticker not in in_tickers]
 
@@ -90,69 +90,76 @@ def agregar_busqueda_y_script(f):
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tables = document.querySelectorAll("table");
-
+    
             tables.forEach(function (table) {
                 const headers = table.querySelectorAll("th");
-
+    
                 headers.forEach(function (header, index) {
+                    // Inicializamos el estado del orden en ascendente
+                    let sortOrder = true;
+    
                     header.addEventListener('click', function () {
-                        sortTable(table, index);
+                        sortTable(table, index, sortOrder);
+                        // Alternamos el orden para la próxima vez
+                        sortOrder = !sortOrder;
                     });
                 });
             });
-
-            function sortTable(table, colIndex) {
+    
+            function sortTable(table, colIndex, ascending) {
                 const rows = Array.from(table.rows).slice(1);
-
+    
                 rows.sort(function (rowA, rowB) {
                     const cellA = rowA.cells[colIndex].innerText.trim();
                     const cellB = rowB.cells[colIndex].innerText.trim();
-
+    
                     const valueA = parseValue(cellA);
                     const valueB = parseValue(cellB);
-
+    
                     if (!isNaN(valueA) && !isNaN(valueB)) {
-                        return valueB - valueA; // Orden numérico descendente
+                        // Orden numérico
+                        return ascending ? valueA - valueB : valueB - valueA;
                     } else {
-                        return cellA.localeCompare(cellB); // Orden alfabético
+                        // Orden alfabético
+                        return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
                     }
                 });
-
+    
                 rows.forEach(function (row) {
                     table.appendChild(row);
                 });
             }
-
+    
             function parseValue(value) {
                 return parseFloat(value.replace('%', '').trim());
             }
-
+    
             window.filterTable = function() {
                 const input = document.getElementById("search");
                 const filter = input.value.toLowerCase();
                 const rows = document.querySelectorAll("table tr");
-
+    
                 rows.forEach(function(row, index) {
                     if (index === 0) return;  // Ignorar la primera fila (encabezados)
-
+    
                     const cells = row.querySelectorAll("td");
                     let found = false;
-
+    
                     cells.forEach(function(cell) {
                         if (cell.innerText.toLowerCase().includes(filter)) {
                             found = true;
                         }
                     });
-
+    
                     row.style.display = found ? "" : "none";
                 });
             };
-
+    
             // Función para copiar la tabla al portapapeles
             window.copyTableToClipboard = function(tableId) {
                 const table = document.getElementById(tableId);
                 let range, selection;
-
+    
                 if (document.body.createTextRange) {  // Para IE
                     range = document.body.createTextRange();
                     range.moveToElementText(table);
@@ -166,11 +173,12 @@ def agregar_busqueda_y_script(f):
                     selection.addRange(range);
                     document.execCommand('copy');
                 }
-
+    
                 alert("Tabla copiada al portapapeles");
             };
         });
     </script>
+
     """
     f.write(busqueda_y_script)
 
@@ -188,22 +196,23 @@ def generar_html_por_bloques(info_financiera, bloque_id):
 
     # Agrupar por sector
     for ticker, data in info_financiera.items():
-        sector = data["Sector"]
-        if sector not in sectores:
-            sectores[sector] = []
-        sectores[sector].append((ticker, data))
+        sector = data.get("Sector", "N/A")
+        if sector != "N/A":  # Omitir sectores "N/A"
+            if sector not in sectores:
+                sectores[sector] = []
+            sectores[sector].append((ticker, data))
 
     with open(html_filename, 'w', encoding='utf-8') as f:
         # Escribir encabezado HTML
         escribir_encabezado_html(f, bloque_id)
-        
+
         # Agregar campo de búsqueda y script
         agregar_busqueda_y_script(f)
 
         # Generar índice de sectores
         f.write('<h2>Índice de Sectores</h2><ul>')
         for sector in sectores.keys():
-            f.write(f'<li><a href="#{sector.replace(" ", "_")}">{sector}</a></li>')
+            f.write(f'<li><a href="#"{sector.replace(" ", "_")}">{sector}</a></li>')
         f.write('</ul>')
 
         # Crear una tabla por cada sector
@@ -224,13 +233,18 @@ def generar_html_por_bloques(info_financiera, bloque_id):
 
             # Agregar filas con información financiera
             for ticker, data in tickers:
-                f.write(f'<tr><td>{data["Nombre"]}</td><td>{ticker}</td>')
+                f.write(f'<tr><td>{data["Nombre"]}</td>')
+                # Agregar hipervínculo para el ticker
+                f.write(f'<td><a href="https://finance.yahoo.com/quote/{ticker}" target="_blank">{ticker}</a></td>')
                 for key in financial_headers:
                     valor = data.get(key, 'N/A')
-                    if isinstance(valor, (int, float)):  # Si el valor es numérico
-                        f.write(f'<td>{valor:.2f}</td>')
-                    else:  # Si el valor no es numérico
-                        f.write(f'<td>{valor}</td>')
+                    if valor != 'N/A':  # Omitir celdas con "N/A"
+                        if isinstance(valor, (int, float)):  # Si el valor es numérico
+                            f.write(f'<td>{valor:.2f}</td>')
+                        else:  # Si el valor no es numérico
+                            f.write(f'<td>{valor}</td>')
+                    else:
+                        f.write('<td></td>')  # Dejar la celda vacía
                 f.write('</tr>')
 
             f.write('</table><br><br>')
