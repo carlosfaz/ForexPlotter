@@ -169,7 +169,7 @@ def guardar_graficas_html(html_filename, *figs, df):
         agregar_busqueda_y_script(f)
 
         # Agregar indice con enlaces a las graficas
-        f.write('<h1>indice de Graficas</h1>\n')
+        f.write('<h1>Indice de Graficas</h1>\n')
         f.write('<ul style="columns: 5; list-style-type: none; padding: 0;">\n')  # Usamos columns para dividir en 5 columnas
         
         # Crear un indice con las graficas distribuidas en 5 columnas
