@@ -8,7 +8,7 @@ start_time = time.time()
 print(f"Empezando en {time.time() - start_time:.2f}.")
 
 # Leer los tickers desde el archivo
-df=pd.read_csv("tickers/sp500x.txt")
+df=pd.read_csv("tickers/nasdaq_and_sp500.txt")
 tickers = df["0"].to_list()
 #df = pd.read_csv('sp500.txt', delimiter='\t', on_bad_lines='skip')
 #tickers = df["Symbol"].to_list()[:20]
