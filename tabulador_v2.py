@@ -8,7 +8,7 @@ start_time = time.time()
 print(f"Empezando en {time.time() - start_time:.2f}.")
 
 # Leer los tickers desde el archivo
-df=pd.read_csv("tickers/nasdaq_and_sp500.txt")
+df=pd.read_csv("tickers/sp500x.txt")
 tickers = df["0"].to_list()
 #df = pd.read_csv('sp500.txt', delimiter='\t', on_bad_lines='skip')
 #tickers = df["Symbol"].to_list()[:20]
@@ -25,8 +25,7 @@ def mostrar_progreso(actual, total, largo_barra=30):
     barra = "=" * longitud_completada + "-" * (largo_barra - longitud_completada)
     porcentaje = progreso * 100
     print(f"\r[{barra}] {porcentaje:.2f}%", end="", flush=True)
-    
-import yfinance as yf
+
 
 # Obtener informacion financiera junto con el sector con barra de progreso
 def obtener_informacion_financiera(tickers):
@@ -315,7 +314,7 @@ def agregar_vinculo_volver_inicio(f):
 
 def generar_html_por_bloques(info_financiera, bloque_id):
     """Genera un archivo HTML para un bloque especifico de tickers con un indice."""
-    html_filename = f'informacion_financiera_bloque_{bloque_id}.html'
+    html_filename = f'sp500_{bloque_id}.html'
     sectores = {}
 
     # Agrupar por sector

@@ -89,191 +89,250 @@ def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, lengt
     if iteration == total: 
         print()
 
-
-# Función para obtener la información financiera
 def get_financial_info(tickers):
     financial_data = []
     total_tickers = len(tickers)
+    
     for i, ticker in enumerate(tickers):
         stock = yf.Ticker(ticker)
         info = stock.info
-        
+
+        # Cálculo y obtención de datos adicionales
+        profit_margin = info.get("profitMargins", 0) * 100  # Convertir a porcentaje
+        operating_margin = info.get("operatingMargins", 0) * 100  # Convertir a porcentaje
+        revenue_growth = info.get("revenueGrowth", 0)
+        revenue = info.get("totalRevenue", 0)  # Ingresos totales
+        net_income = info.get("netIncomeToCommon", 0)  # Ingreso neto
+        ebitda = info.get("ebitda", 0)  # EBITDA
+
         # Recopilando la información financiera abreviada
         financial_info = {
             "Ticker": ticker,
-            "Nombre": info.get("longName", 0),
-            "Sector": info.get("sector", 0),
-            "P/E": info.get("trailingPE", 0),  # P/E Ratio
-            "EPS": info.get("trailingEps", 0),  # Earnings per Share
-            "BV": info.get("bookValue", 0),  # Book Value
-            "Div Yld": info.get("dividendYield", 0),  # Dividend Yield
-            "Div/Sh": info.get("dividendRate", 0),  # Dividend per Share
-            "D/E": info.get("debtToEquity", 0),  # Debt-to-Equity Ratio
-            "Beta": info.get("beta", 0),  # Beta
-            "ROI": info.get("returnOnInvestment", 0),  # Return on Investment
-            "ROE": info.get("returnOnEquity", 0),  # Return on Equity
-            "Vol": info.get("fiftyDayAverage", 0),  # Volatility (50-day)
-            "52W H": info.get("fiftyTwoWeekHigh", 0),  # 52 Week High
-            "52W L": info.get("fiftyTwoWeekLow", 0),  # 52 Week Low
-            "P/B": info.get("priceToBook", 0),  # Price to Book Ratio
-            "GM": info.get("grossMargins", 0),  # Gross Margin
-            "ROA": info.get("returnOnAssets", 0),  # Return on Assets
-            "OM": info.get("operatingMargins", 0),  # Operating Margin
-            "Rev Gr": info.get("revenueGrowth", 0),  # Revenue Growth
-            "PM": info.get("profitMargins", 0),  # Profit Margin
-            "EPS Gr": info.get("earningsGrowth", 0),  # EPS Growth
-            "IC": info.get("interestCoverage", 0),  # Interest Coverage
-            "CR": info.get("currentRatio", 0),  # Current Ratio
-            "NI Stab": info.get("netIncomeStability", 0),  # Net Income Stability
-            "Sec Persp": info.get("sectorPerspective", 0)  # Sector Perspective
+            "Nombre": info.get("longName", "N/A"),
+            "Sector": info.get("sector", "N/A"),
+            "P/E": info.get("trailingPE", 0),
+            "EPS": info.get("trailingEps", 0),
+            "BV": info.get("bookValue", 0),
+            "Div Yld": info.get("dividendYield", 0),
+            "Div/Sh": info.get("dividendRate", 0),
+            "D/E": info.get("debtToEquity", 0),
+            "Beta": info.get("beta", 0),
+            "Profit Margin": f"{profit_margin:,.2f}%",  # Formato porcentaje
+            "Operating Margin": f"{operating_margin:,.2f}%",  # Formato porcentaje
+            "Revenue Growth": f"{revenue_growth * 100:,.2f}%",  # Formato con comas, con porcentaje
+            "ROE": info.get("returnOnEquity", 0),
+            "Vol": info.get("fiftyDayAverage", 0),
+            "Revenue": f"{revenue:,.0f}",  # Formato con comas
+            "Net Income": f"{net_income:,.0f}",  # Formato con comas
+            "EBITDA": f"{ebitda:,.0f}",  # Formato con comas
         }
         financial_data.append(financial_info)
         
-        # Actualizar la barra de progreso
+        # Actualizar la barra de progreso (si tienes una implementada)
         print_progress_bar(i + 1, total_tickers, prefix='Progreso:', suffix='Completado', length=50)
     
     return pd.DataFrame(financial_data)
 
+# Función para crear una tabla HTML con toda la información
+def crear_tabla_general(df, f):
+    """Crea una tabla HTML con todos los datos financieros y la escribe en el archivo."""
+    f.write('<table id="tabla-general">\n<thead>\n<tr>\n')
+
+    # Escribir encabezados
+    for col in df.columns:
+        f.write(f'<th>{col}</th>\n')
+    f.write('</tr>\n</thead>\n<tbody>\n')
+
+    # Escribir datos
+    for _, row in df.iterrows():
+        f.write('<tr>\n')
+        for col in df.columns:
+            value = row[col]
+            # Si la columna es un ticker, agregar el hipervínculo
+            if col == "Ticker":  # Suponiendo que la columna se llama "Ticker"
+                ticker = row[col]
+                f.write(f'<td><a href="https://finance.yahoo.com/quote/{ticker}" target="_blank">{ticker}</a></td>\n')
+            else:
+                # Si la columna es numérica, formatear con 2 decimales
+                if isinstance(value, (int, float)):
+                    value = f"{value:.2f}"
+                f.write(f'<td>{value}</td>\n')
+        f.write('</tr>\n')
+    f.write('</tbody>\n</table>\n')
+
+# Función principal para guardar gráficas y tablas en un HTML con índice de acceso rápido a las gráficas
+def guardar_graficas_html(html_filename, *figs, df):
+    """Guarda gráficas y datos financieros en un archivo HTML con índice de acceso rápido."""
+    with open(html_filename, 'w', encoding='utf-8') as f:
+        # Escribir encabezado básico
+        escribir_encabezado_html(f, bloque_id=1)
+        agregar_busqueda_y_script(f)
+
+        # Agregar índice con enlaces a las gráficas
+        f.write('<h1>Índice de Gráficas</h1>\n')
+        f.write('<ul style="columns: 5; list-style-type: none; padding: 0;">\n')  # Usamos columns para dividir en 5 columnas
+        
+        # Crear un índice con las gráficas distribuidas en 5 columnas
+        for i, fig in enumerate(figs):
+            f.write(f'<li><a href="#grafico{i}">{fig.layout.title.text}</a></li>\n')
+        
+        f.write('</ul>\n')
+
+        # Agregar la tabla general con todos los datos
+        f.write('<h1>Información Financiera</h1>\n')
+        crear_tabla_general(df, f)
+
+        # Guardar las gráficas con títulos y navegación
+        f.write('<h1>Gráficas de Precios Históricos</h1>\n')
+        for i, fig in enumerate(figs):
+            f.write(f'<h2 id="grafico{i}">{fig.layout.title.text}</h2>\n')  # Título con ID
+            f.write(fig.to_html(full_html=False, include_plotlyjs="cdn"))
+            f.write('<br><br>\n')
+            agregar_vinculo_volver_inicio(f)
+
+        f.write('</body></html>\n')
+
+    print(f"Las tablas y gráficas han sido guardadas en {html_filename}")
+
+
+
+def escribir_encabezado_html(f, bloque_id):
+    """Escribe el encabezado basico del archivo HTML con estilo."""
+    encabezado_html = f'''
+    <h1>Informacion Financiera - Bloque {bloque_id}</h1>
+    <html><head><style>
+        table {{border-collapse: collapse; width: 100%;}} 
+        th, td {{border: 1px solid black; padding: 5px;}} 
+        th {{background-color: #f2f2f2;}} 
+        a {{color: blue; text-decoration: none; font-weight: bold;}}
+    </style></head><body id="top">
+    '''
+    f.write(encabezado_html)
 
 def agregar_busqueda_y_script(f):
-    """Agrega el campo de búsqueda y el script para ordenar y filtrar las tablas."""
+    """Agrega el campo de busqueda y el script para ordenar y filtrar las tablas."""
     busqueda_y_script = """
     <label for="search">Buscar en la tabla:</label>
     <input type="text" id="search" onkeyup="filterTable()" placeholder="Buscar...">
     <br><br>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const tables = document.querySelectorAll("table");
+    document.addEventListener('DOMContentLoaded', function () {
+    const tables = document.querySelectorAll("table");
 
-            tables.forEach(function (table) {
-                const headers = table.querySelectorAll("th");
+    tables.forEach(function (table) {
+        const headers = table.querySelectorAll("th");
 
-                headers.forEach(function (header, index) {
-                    header.addEventListener('click', function () {
-                        sortTable(table, index);
-                    });
-                });
+        headers.forEach(function (header, index) {
+            // Inicializamos el estado del orden en ascendente
+            let sortOrder = true;
+
+            header.addEventListener('click', function () {
+                sortTable(table, index, sortOrder);
+                // Alternamos el orden para la proxima vez
+                sortOrder = !sortOrder;
+            });
+        });
+    });
+
+    function sortTable(table, colIndex, ascending) {
+        const rows = Array.from(table.rows).slice(1); // Excluir la fila de los encabezados
+
+        // Ordenar las filas usando la funcion de comparacion optimizada
+        rows.sort(function (rowA, rowB) {
+            const cellA = rowA.cells[colIndex].textContent.trim();
+            const cellB = rowB.cells[colIndex].textContent.trim();
+
+            const valueA = parseValue(cellA);
+            const valueB = parseValue(cellB);
+
+            if (!isNaN(valueA) && !isNaN(valueB)) {
+                // Orden numerico
+                return ascending ? valueA - valueB : valueB - valueA;
+            } else {
+                // Orden alfabetico
+                return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+            }
+        });
+
+        // Usar documentFragment para manipular el DOM de manera eficiente
+        const fragment = document.createDocumentFragment();
+        rows.forEach(function (row) {
+            fragment.appendChild(row); // Agregar filas al fragmento
+        });
+
+        // Añadir todas las filas reordenadas de una vez al DOM
+        table.appendChild(fragment);
+    }
+
+    function parseValue(value) {
+        // Eliminar comas y convertir a float
+        return parseFloat(value.replace(/,/g, '').replace('%', '').trim());
+    }
+
+    window.filterTable = function () {
+        const input = document.getElementById("search");
+        const filter = input.value.toLowerCase();
+        const rows = document.querySelectorAll("table tr");
+
+        rows.forEach(function (row, index) {
+            if (index === 0) return;  // Ignorar la primera fila (encabezados)
+
+            const cells = row.querySelectorAll("td");
+            let found = false;
+
+            cells.forEach(function (cell) {
+                if (cell.textContent.toLowerCase().includes(filter)) {
+                    found = true;
+                }
             });
 
-            function sortTable(table, colIndex) {
-                const rows = Array.from(table.rows).slice(1);
-
-                rows.sort(function (rowA, rowB) {
-                    const cellA = rowA.cells[colIndex].innerText.trim();
-                    const cellB = rowB.cells[colIndex].innerText.trim();
-
-                    const valueA = parseValue(cellA);
-                    const valueB = parseValue(cellB);
-
-                    if (!isNaN(valueA) && !isNaN(valueB)) {
-                        return valueB - valueA; // Orden numérico descendente
-                    } else {
-                        return cellA.localeCompare(cellB); // Orden alfabético
-                    }
-                });
-
-                rows.forEach(function (row) {
-                    table.appendChild(row);
-                });
-            }
-
-            function parseValue(value) {
-                return parseFloat(value.replace('%', '').trim());
-            }
-
-            window.filterTable = function() {
-                const input = document.getElementById("search");
-                const filter = input.value.toLowerCase();
-                const rows = document.querySelectorAll("table tr");
-
-                rows.forEach(function(row, index) {
-                    if (index === 0) return;  // Ignorar la primera fila (encabezados)
-
-                    const cells = row.querySelectorAll("td");
-                    let found = false;
-
-                    cells.forEach(function(cell) {
-                        if (cell.innerText.toLowerCase().includes(filter)) {
-                            found = true;
-                        }
-                    });
-
-                    row.style.display = found ? "" : "none";
-                });
-            };
-
-            // Función para copiar la tabla al portapapeles
-            window.copyTableToClipboard = function(tableId) {
-                const table = document.getElementById(tableId);
-                let range, selection;
-
-                if (document.body.createTextRange) {  // Para IE
-                    range = document.body.createTextRange();
-                    range.moveToElementText(table);
-                    range.select();
-                    document.execCommand('copy');
-                } else if (window.getSelection) {  // Para otros navegadores
-                    selection = window.getSelection();
-                    range = document.createRange();
-                    range.selectNodeContents(table);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                    document.execCommand('copy');
-                }
-
-                alert("Tabla copiada al portapapeles");
-            };
+            row.style.display = found ? "" : "none";
         });
+    };
+
+    // Funcion para copiar la tabla al portapapeles
+    window.copyTableToClipboard = function (tableId) {
+        const table = document.getElementById(tableId);
+        let range, selection;
+
+        if (document.body.createTextRange) {  // Para IE
+            range = document.body.createTextRange();
+            range.moveToElementText(table);
+            range.select();
+            document.execCommand('copy');
+        } else if (window.getSelection) {  // Para otros navegadores
+            selection = window.getSelection();
+            range = document.createRange();
+            range.selectNodeContents(table);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.execCommand('copy');
+        }
+
+        alert("Tabla copiada al portapapeles");
+    };
+});
+
     </script>
+
     """
     f.write(busqueda_y_script)
 
+def agregar_vinculo_volver_inicio(f):
+    """Agrega un enlace para volver al inicio de la pagina."""
+    f.write('<br><a href="#top">Volver al inicio</a><br><br>')
 
-def guardar_graficas_html(html_filename, *figs, df):
-    """Guarda gráficas y datos financieros organizados por sector en un archivo HTML."""
-    # Agrupar los datos por sector
-    sectors = df.groupby("Sector")
-    
-    # Guardar la información en HTML
-    with open(html_filename, 'w', encoding='utf-8') as f:  # Codificación UTF-8
-        # Crear el índice al inicio del archivo HTML
-        f.write("<h1 id='top'>Índice de Gráficas y Datos Financieros</h1>\n")
-        f.write("<ul style='columns: 5;'>\n")  # Índice en varias columnas
-        
-        # Crear enlaces al índice de los tickers (gráficas)
-        for i, fig in enumerate(figs):
-            ticker_symbol = fig.layout.title.text.split('(')[0].strip()  # Obtener el nombre sin ticker
-            f.write(f'<li><a href="#ticker{i}" style="color:blue;">{ticker_symbol}</a></li>\n')
-        f.write("</ul>\n\n")
 
-        # Llamada a la función de búsqueda y ordenación
-        agregar_busqueda_y_script(f)
 
-        # Crear tabla por sector
-        for sector, group in sectors:
-            f.write(f'<h2>Sector: {sector}</h2>\n')
-            # Asegurarse de que los encabezados de las tablas se muestren correctamente
-            f.write(group.to_html(index=False, header=True))
-
-        # Guardar las gráficas con sus títulos y asignar ID a cada sección
-        for i, fig in enumerate(figs):
-            f.write(f'<h2 id="ticker{i}">{fig.layout.title.text}</h2>\n')  # Título con ID
-            f.write(f'<button onclick="window.location.href=\'#top\'">Volver al Inicio</button>\n')  # Botón para ir al inicio
-            f.write(fig.to_html(full_html=True, include_plotlyjs="cdn"))
-            f.write("<br><br>\n")
-
-    print(f"Las gráficas y las tablas por sector han sido guardadas en {html_filename}")
-
-# Procesar los tickers
+# Procesar tickers y generar archivo HTML
 figs = []
 index_id = 0
-total_tasks = len(tickers) * 1  # Solo 1 intervalo por ticker
-current_task = 0  # Contador para la barra de progreso
+total_tasks = len(tickers)
+current_task = 0
 
-# Bucle para procesar los tickers
 for ticker in tickers:
-    for periodo, intervalo in [("1d", "1m")]:  # Ejemplo de intervalo
+    for periodo, intervalo in [("1mo", "1h")]:  # Ejemplo de intervalo
         data, weekend_jumps = obtener_datos(ticker, periodo, intervalo)
         if data is not None:
             # Crear gráfico
@@ -283,11 +342,11 @@ for ticker in tickers:
         current_task += 1
         print_progress_bar(current_task, total_tasks)
 
-# Crear DataFrame de datos financieros
+# Crear DataFrame con la información financiera
 financial_data = get_financial_info(tickers)
 df_financial_data = pd.DataFrame(financial_data)
 
-# Guardar en HTML
+# Guardar tablas y gráficas en HTML
 html_filename = "grafico_precios_historicos.html"
 guardar_graficas_html(html_filename, *figs, df=df_financial_data)
 
