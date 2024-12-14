@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 #tickers = ["AAPL", "TSLA"]
 
 
-df=pd.read_csv("mis_tickers.txt")
+df=pd.read_csv("tickers/mis_tickers.txt")
 tickers = df["0"].to_list()
 
 def obtener_datos(ticker_symbol, period, interval):
